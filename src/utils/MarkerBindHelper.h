@@ -22,6 +22,7 @@ void InvokeGroundMarker(SquadMarker marker, AddonAPI_t* api, int durationMs);
 void InvokeObjectMarker(SquadMarker marker, AddonAPI_t* api, int durationMs);
 
 BindCheckResult CheckRequiredBinds(AddonAPI_t* api, bool needObject);
+bool IsBindAvailable(AddonAPI_t* api, EGameBinds bind);
 
 std::string SquadMarkerDisplayName(SquadMarker marker);
 

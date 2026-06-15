@@ -5,6 +5,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace cm {
 
@@ -54,6 +55,8 @@ public:
     void UpsertMap(const Gw2Map& map);
 
     const Gw2Map* GetMap(int mapId) const;
+    std::vector<Gw2Map> GetAllMaps() const;
+    bool MapHasGeometry(int mapId) const;
     std::string Describe(int mapId) const;
 
     static Vec2f WorldToScreenMap(int mapId,
@@ -61,9 +64,9 @@ public:
                                   const ScreenMapData& screenData,
                                   const MapDataCache& cache);
     static Vec2f MapToScreenMap(const Vec2f& mapCoords, const ScreenMapData& screenData);
+    static Vec2f WorldMetersToMap(const Gw2Map& map, const Vec3f& worldMeters);
 
 private:
-    static Vec2f WorldMetersToMap(const Gw2Map& map, const Vec3f& worldMeters);
     static Vec2f WorldInchesToMap(const Gw2Map& map, const Vec3f& worldInches);
 
     std::string addonDir_;

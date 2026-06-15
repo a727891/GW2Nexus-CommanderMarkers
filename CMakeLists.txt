@@ -62,6 +62,7 @@ set(SRC_FILES
     src/core/SettingsStore.cpp
     src/core/MumbleUtils.cpp
     src/data/MarkerSetJson.cpp
+    src/data/MarkerSetClipboard.cpp
     src/data/MapDataCache.cpp
     src/data/StaticDataLoader.cpp
     src/data/CommunityMeta.cpp
@@ -71,8 +72,14 @@ set(SRC_FILES
     src/services/CommunityMarkerService.cpp
     src/services/MarkerPlacementService.cpp
     src/services/MapWatchService.cpp
+    src/services/RtApiService.cpp
     src/utils/MarkerBindHelper.cpp
+    src/utils/Base64Codec.cpp
     src/utils/MarkerPlacementHelper.cpp
+    src/utils/GameScanCode.cpp
+    src/utils/InteractBindService.cpp
+    src/utils/MumbleIdentity.cpp
+    src/utils/WorldProjection.cpp
     src/ui/OverlayPanel.cpp
     src/ui/TextureService.cpp
     src/ui/DatAssetIconService.cpp
@@ -81,9 +88,14 @@ set(SRC_FILES
     src/ui/BillboardRenderer.cpp
     src/ui/OptionsUiKit.cpp
     src/ui/OptionsPanel.cpp
+    src/ui/SettingsWindow.cpp
     src/ui/LibraryEditorUi.cpp
+    src/ui/MarkerSetEditorWindow.cpp
+    src/ui/MapPickerUi.cpp
+    src/ui/SquadMarkerIconPicker.cpp
     src/ui/CommunityLibraryUi.cpp
     src/ui/QuickAccessService.cpp
+    src/ui/UiFontService.cpp
     ${EMBEDDED_TEXTURES_CPP}
 )
 
@@ -97,6 +109,7 @@ target_include_directories(NexusCommanderMarkers PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/extern
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/nexus
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/mumble
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/rtapi
     ${CMAKE_BINARY_DIR}/generated
 )
 

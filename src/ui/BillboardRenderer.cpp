@@ -2,107 +2,76 @@
 
 #include "core/AppState.h"
 #include "core/MumbleUtils.h"
+#include "data/MapDataCache.h"
 #include "services/MapWatchService.h"
 #include "ui/DatAssetIconService.h"
 #include "ui/TextureService.h"
+#include "ui/UiFontService.h"
+#include "ui/UiLayer.h"
+#include "utils/InteractBindService.h"
+#include "utils/WorldProjection.h"
 
 #include <cmath>
+#include <algorithm>
 #include <imgui.h>
-#include <nlohmann/json.hpp>
-#include <windows.h>
 
 namespace cm {
 namespace BillboardRenderer {
 namespace {
 
 constexpr float kFloorFilterMeters = 30.0f;
-constexpr float kMarkerIconSize = 32.0f;
+constexpr float kMaxBillboardHorizontalDistanceGameUnits = 5000.0f;
+constexpr float kMaxBillboardHorizontalDistanceMeters =
+    kMaxBillboardHorizontalDistanceGameUnits / MapDataCache::kMetersToInches;
+constexpr float kPreviewMarkerIconSize = 32.0f;
+constexpr float kMinTriggerBillboardSize = 32.0f;
+constexpr float kTriggerBillboardFullSizeDistance = 5.0f;
 
-struct CameraVectors {
-    Vec3f position{};
-    Vec3f front{};
-    Vec3f top{};
-    Vec3f right{};
-    float fovRadians = 1.0f;
+constexpr ImGuiWindowFlags kBillboardOverlayFlags =
+    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings |
+    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav |
+    ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoBackground;
+
+struct BillboardOverlayWindow {
+    int styleVars = 0;
+
+    bool Begin(const NexusLinkData_t* nexusLink) {
+        if (!nexusLink || nexusLink->Width == 0 || nexusLink->Height == 0) {
+            return false;
+        }
+
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(
+            ImVec2(static_cast<float>(nexusLink->Width), static_cast<float>(nexusLink->Height)),
+            ImGuiCond_Always);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        styleVars = 2;
+
+        if (!ImGui::Begin("##cm_billboard_overlay", nullptr, kBillboardOverlayFlags)) {
+            End();
+            return false;
+        }
+        SendWindowToDisplayBack();
+        return true;
+    }
+
+    void End() {
+        ImGui::End();
+        if (styleVars > 0) {
+            ImGui::PopStyleVar(styleVars);
+            styleVars = 0;
+        }
+    }
 };
 
-Vec3f Normalize(const Vec3f& v) {
-    const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-    if (len <= 0.0001f) {
-        return {};
-    }
-    return {v.x / len, v.y / len, v.z / len};
-}
-
-Vec3f Cross(const Vec3f& a, const Vec3f& b) {
-    return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
-}
-
-float Dot(const Vec3f& a, const Vec3f& b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-CameraVectors BuildCamera(const Mumble::Data* mumble) {
-    CameraVectors camera{};
-    if (!mumble) {
-        return camera;
-    }
-
-    camera.position = {mumble->CameraPosition.X, mumble->CameraPosition.Y,
-                       mumble->CameraPosition.Z};
-    camera.front = Normalize({mumble->CameraFront.X, mumble->CameraFront.Y, mumble->CameraFront.Z});
-    camera.top = Normalize({mumble->CameraTop.X, mumble->CameraTop.Y, mumble->CameraTop.Z});
-    camera.right = Normalize(Cross(camera.front, camera.top));
-
-    camera.fovRadians = 1.0472f;
-    try {
-        const std::wstring identityWide(mumble->Identity);
-        const int size = WideCharToMultiByte(CP_UTF8, 0, identityWide.c_str(), -1, nullptr, 0,
-                                             nullptr, nullptr);
-        if (size > 1) {
-            std::string identity(static_cast<size_t>(size - 1), '\0');
-            WideCharToMultiByte(CP_UTF8, 0, identityWide.c_str(), -1, identity.data(), size,
-                                nullptr, nullptr);
-            const auto j = nlohmann::json::parse(identity);
-            const float fovDegrees = j.value("fov", 0.0f);
-            if (fovDegrees > 1.0f) {
-                camera.fovRadians = fovDegrees * 3.14159265f / 180.0f;
-            }
-        }
-    } catch (...) {
-    }
-
-    return camera;
-}
-
-bool WorldToScreen(const Vec3f& world, const CameraVectors& camera, const NexusLinkData_t* nexus,
-                   Vec2f& out) {
-    if (!nexus || nexus->Width == 0 || nexus->Height == 0) {
-        return false;
-    }
-
-    const Vec3f delta = {world.x - camera.position.x, world.y - camera.position.y,
-                         world.z - camera.position.z};
-    const float depth = Dot(delta, camera.front);
-    if (depth <= 0.05f) {
-        return false;
-    }
-
-    const float x = Dot(delta, camera.right);
-    const float y = Dot(delta, camera.top);
-    const float aspect =
-        static_cast<float>(nexus->Width) / static_cast<float>(nexus->Height > 0 ? nexus->Height : 1);
-    const float tanHalfFov = std::tan(camera.fovRadians * 0.5f);
-
-    const float ndcX = x / (depth * tanHalfFov * aspect);
-    const float ndcY = -y / (depth * tanHalfFov);
-    if (ndcX < -1.5f || ndcX > 1.5f || ndcY < -1.5f || ndcY > 1.5f) {
-        return false;
-    }
-
-    out.x = (ndcX + 1.0f) * 0.5f * static_cast<float>(nexus->Width);
-    out.y = (ndcY + 1.0f) * 0.5f * static_cast<float>(nexus->Height);
-    return true;
+float TriggerBillboardIconSize(float baseSize, float playerDistance) {
+    // Full configured size when near the trigger; shrink with horizontal player distance.
+    const float distance = std::max(playerDistance, kTriggerBillboardFullSizeDistance);
+    const float scaled = baseSize * (kTriggerBillboardFullSizeDistance / distance);
+    return std::max(kMinTriggerBillboardSize, std::min(baseSize, scaled));
 }
 
 bool ShouldRender(const AppState& state) {
@@ -119,15 +88,23 @@ bool ShouldRender(const AppState& state) {
         return false;
     }
     if (state.settings.autoMarkerOnlyCommander || state.ltMode) {
-        if (!IsCommander(state.mumbleLink) && !state.ltMode) {
+        if (!HasCommanderPermissions(state.mumbleLink, state.playerIdentity) && !state.ltMode) {
             return false;
         }
     }
     return true;
 }
 
-bool SameFloor(const Vec3f& player, const Vec3f& marker) {
-    return std::fabs(player.z - marker.z) <= kFloorFilterMeters;
+bool IsWithinBillboardCull(const Vec3f& player, const Vec3f& marker) {
+    if (std::fabs(player.z - marker.z) > kFloorFilterMeters) {
+        return false;
+    }
+
+    const float dx = player.x - marker.x;
+    const float dy = player.y - marker.y;
+    const float horizontalDistanceSq = dx * dx + dy * dy;
+    return horizontalDistanceSq <=
+           kMaxBillboardHorizontalDistanceMeters * kMaxBillboardHorizontalDistanceMeters;
 }
 
 float Distance(const Vec3f& a, const Vec3f& b) {
@@ -137,20 +114,23 @@ float Distance(const Vec3f& a, const Vec3f& b) {
     return std::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-void DrawMarkerIcon(ImDrawList* draw, ImTextureID texture, const Vec2f& screenPos, float alpha) {
+void DrawMarkerIcon(ImDrawList* draw,
+                    ImTextureID texture,
+                    const Vec2f& screenPos,
+                    float iconSize,
+                    float alpha) {
     if (!texture) {
         return;
     }
 
-    const float half = kMarkerIconSize * 0.5f;
+    const float half = iconSize * 0.5f;
     const ImVec2 p0(screenPos.x - half, screenPos.y - half);
     const ImVec2 p1(screenPos.x + half, screenPos.y + half);
     const ImU32 tint = IM_COL32(255, 255, 255, static_cast<int>(255.0f * alpha));
     draw->AddImage(texture, p0, p1, ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), tint);
 }
 
-void DrawInteractBubble(AppState& state, const CameraVectors& camera, const Vec3f& player,
-                        const MarkerSet& markerSet) {
+void DrawInteractBubble(AppState& state, const Vec3f& player, const MarkerSet& markerSet) {
     if (!state.settings.billboardPlacement) {
         return;
     }
@@ -166,13 +146,31 @@ void DrawInteractBubble(AppState& state, const CameraVectors& camera, const Vec3
 
     const ImTextureID bubble =
         DatAssetIconService::Request(DatAssetIconService::kInteractBubbleAssetId);
-    DatAssetIconService::ProcessDownloads();
 
-    const float centerX = static_cast<float>(state.nexusLink->Width) * 0.5f + 150.0f;
-    const float centerY = static_cast<float>(state.nexusLink->Height) * 0.5f + 120.0f;
-    const ImVec2 p0(centerX - 150.0f, centerY - 75.0f);
-    const ImVec2 p1(centerX + 150.0f, centerY + 75.0f);
-    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const float scale = state.nexusLink->Scaling > 0.0f ? state.nexusLink->Scaling : 1.0f;
+    const float width = static_cast<float>(state.nexusLink->Width);
+    const float height = static_cast<float>(state.nexusLink->Height);
+
+    // GW2's interact prompt uses a fixed viewport ratio (lower-right), not screen center.
+    constexpr float kBubbleWidth = 300.0f;
+    constexpr float kBubbleHeight = 150.0f;
+    constexpr float kIconInset = 70.0f;
+    constexpr float kNativeInteractAnchorXRatio = 0.70f;
+    constexpr float kNativeInteractAnchorYRatio = 0.70f;
+    constexpr float kNativeInteractHalfHeight = 24.0f;
+    constexpr float kGapBelowNative = 10.0f;
+
+    const float bubbleW = kBubbleWidth * scale;
+    const float bubbleH = kBubbleHeight * scale;
+    const float anchorX = width * kNativeInteractAnchorXRatio;
+    const float anchorY = height * kNativeInteractAnchorYRatio;
+    const float centerX = anchorX;
+    const float centerY =
+        anchorY + (kNativeInteractHalfHeight + kGapBelowNative) * scale + bubbleH * 0.5f;
+    const ImVec2 p0(centerX - bubbleW * 0.5f, centerY - bubbleH * 0.5f);
+    const ImVec2 p1(centerX + bubbleW * 0.5f, centerY + bubbleH * 0.5f);
+
+    ImDrawList* draw = ImGui::GetWindowDrawList();
     if (bubble) {
         draw->AddImage(bubble, p0, p1);
     } else {
@@ -180,12 +178,15 @@ void DrawInteractBubble(AppState& state, const CameraVectors& camera, const Vec3
     }
 
     char prompt[256];
-    std::snprintf(prompt, sizeof(prompt), "Press interact to place markers\n%s",
-                  markerSet.name.c_str());
-    const ImVec2 textPos(centerX - 80.0f, centerY - 40.0f);
-    draw->AddText(ImVec2(textPos.x + 1.0f, textPos.y + 1.0f), IM_COL32(0, 0, 0, 255), prompt);
-    draw->AddText(textPos, IM_COL32(255, 255, 255, 255), prompt);
-    (void)camera;
+    std::snprintf(prompt, sizeof(prompt), "Press '%s' to place markers\n%s",
+                  InteractBindService::GetPrimaryKeyLabel(), markerSet.name.c_str());
+
+    ImFont* font = UiFontService::GetUiFont(state.nexusLink);
+    const float fontSize = UiFontService::EffectiveFontSize(font, scale);
+    const ImVec2 textSize = UiFontService::MeasureText(prompt, font, fontSize);
+    const ImVec2 textPos(p0.x + kIconInset * scale, centerY - textSize.y * 0.5f);
+    UiFontService::DrawTextShadowed(draw, font, fontSize, textPos, IM_COL32(255, 255, 255, 255),
+                                    prompt);
 }
 
 }  // namespace
@@ -195,14 +196,21 @@ void Render(AppState& state) {
         return;
     }
 
-    const CameraVectors camera = BuildCamera(state.mumbleLink);
+    BillboardOverlayWindow overlay;
+    if (!overlay.Begin(state.nexusLink)) {
+        return;
+    }
+
+    const GameCamera camera = BuildGameCamera(state.mumbleLink);
     const Vec3f player = PlayerPosition(state.mumbleLink);
-    ImDrawList* draw = ImGui::GetForegroundDrawList();
-    const ImTextureID heart = TextureService::GetUiTexture("heart");
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const ImTextureID triggerIcon = TextureService::GetTriggerMarkerTexture();
+    const float triggerIconSize =
+        TriggerMarkerSizePixels(state.settings.triggerMarkerSize);
 
     for (const MarkerSet& markerSet : state.mapWatch.CurrentMapMarkers()) {
         const Vec3f trigger{markerSet.trigger.x, markerSet.trigger.y, markerSet.trigger.z};
-        if (!SameFloor(player, trigger)) {
+        if (!IsWithinBillboardCull(player, trigger)) {
             continue;
         }
 
@@ -211,14 +219,16 @@ void Render(AppState& state) {
         if (WorldToScreen(trigger, camera, state.nexusLink, screenPos)) {
             const float alpha =
                 triggerDistance < MapWatchService::TRIGGER_DISTANCE_CLOSED_MAP ? 0.25f : 0.8f;
-            DrawMarkerIcon(draw, heart, screenPos, alpha);
+            const float iconSize =
+                TriggerBillboardIconSize(triggerIconSize, triggerDistance);
+            DrawMarkerIcon(draw, triggerIcon, screenPos, iconSize, alpha);
         }
 
         if (state.settings.billboardPreview &&
             triggerDistance < MapWatchService::TRIGGER_DISTANCE_CLOSED_MAP) {
             for (const MarkerCoord& marker : markerSet.markers) {
                 const Vec3f world{marker.x, marker.y, marker.z};
-                if (!SameFloor(player, world)) {
+                if (!IsWithinBillboardCull(player, world)) {
                     continue;
                 }
 
@@ -227,13 +237,15 @@ void Render(AppState& state) {
                                                         : SquadMarker::Arrow;
                 const ImTextureID texture = TextureService::GetTexture(squadMarker);
                 if (WorldToScreen(world, camera, state.nexusLink, screenPos)) {
-                    DrawMarkerIcon(draw, texture, screenPos, 1.0f);
+                    DrawMarkerIcon(draw, texture, screenPos, kPreviewMarkerIconSize, 1.0f);
                 }
             }
         }
 
-        DrawInteractBubble(state, camera, player, markerSet);
+        DrawInteractBubble(state, player, markerSet);
     }
+
+    overlay.End();
 }
 
 }  // namespace BillboardRenderer

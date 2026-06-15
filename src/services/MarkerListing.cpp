@@ -44,9 +44,10 @@ void MarkerListing::SetOnMarkersChanged(std::function<void()> callback) {
 }
 
 void MarkerListing::NotifyChanged() {
-    if (onMarkersChanged_) {
-        onMarkersChanged_();
+    if (suppressNotify_ || !onMarkersChanged_) {
+        return;
     }
+    onMarkersChanged_();
 }
 
 MarkerListingFile MarkerListing::InitDefaultPresets() {
@@ -123,6 +124,7 @@ void MarkerListing::ApplyListing(MarkerListingFile listing) {
 }
 
 void MarkerListing::Load() {
+    suppressNotify_ = true;
     const auto configPath = std::filesystem::path(addonDir_) / kFilename;
     if (!std::filesystem::exists(configPath)) {
         MarkerListingFile listing{};
@@ -131,6 +133,7 @@ void MarkerListing::Load() {
         }
         ApplyListing(std::move(listing));
         Save();
+        suppressNotify_ = false;
         return;
     }
 
@@ -138,6 +141,7 @@ void MarkerListing::Load() {
     if (!ReadFileText(configPath, fileText)) {
         ApplyListing(InitDefaultPresets());
         Save();
+        suppressNotify_ = false;
         return;
     }
 
@@ -146,6 +150,7 @@ void MarkerListing::Load() {
             MarkerSetJson::MarkerListingFileFromJson(nlohmann::json::parse(fileText));
         if (listing.version == "1.0.0") {
             ResetToDefault();
+            suppressNotify_ = false;
             return;
         }
         ApplyListing(std::move(listing));
@@ -153,6 +158,7 @@ void MarkerListing::Load() {
         ApplyListing(InitDefaultPresets());
         Save();
     }
+    suppressNotify_ = false;
 }
 
 void MarkerListing::Save() {
@@ -177,7 +183,7 @@ void MarkerListing::Save() {
     }
     out << json;
 
-    if (changedCallback) {
+    if (changedCallback && !suppressNotify_) {
         changedCallback();
     }
 }
@@ -209,6 +215,16 @@ void MarkerListing::SaveMarker(const MarkerSet& markerSet) {
         presets_.push_back(markerSet);
     }
     Save();
+}
+
+bool MarkerListing::ContainsMarkerSet(const MarkerSet& markerSet) const {
+    std::lock_guard lock(mutex_);
+    for (const auto& existing : presets_) {
+        if (MarkerSetsEqual(existing, markerSet)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void MarkerListing::EditMarker(size_t index, const MarkerSet& markerSet) {

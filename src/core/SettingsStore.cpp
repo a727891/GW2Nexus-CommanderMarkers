@@ -9,7 +9,16 @@ namespace cm {
 namespace {
 
 PanelLayout LayoutFromInt(int value) {
-    return value == 0 ? PanelLayout::Vertical : PanelLayout::Horizontal;
+    switch (value) {
+        case 1:
+            return PanelLayout::Stacked;
+        case 2:
+            return PanelLayout::SingleRow;
+        case 3:
+            return PanelLayout::SingleColumn;
+        default:
+            return PanelLayout::SideBySide;
+    }
 }
 
 CornerIconAction CornerActionFromInt(int value) {
@@ -30,6 +39,17 @@ CornerIconAction CornerActionFromInt(int value) {
 SquadMarker SquadMarkerFromInt(int value) {
     if (value < 0 || value > 9) return SquadMarker::Heart;
     return static_cast<SquadMarker>(value);
+}
+
+TriggerMarkerSize TriggerMarkerSizeFromInt(int value) {
+    switch (value) {
+        case 1:
+            return TriggerMarkerSize::Normal;
+        case 2:
+            return TriggerMarkerSize::Large;
+        default:
+            return TriggerMarkerSize::Small;
+    }
 }
 
 }  // namespace
@@ -63,9 +83,18 @@ void SettingsStore::Load(const std::string& filePath) {
     if (j.contains("CmdMrkBillboardEnabled")) billboardEnabled = j["CmdMrkBillboardEnabled"].get<bool>();
     if (j.contains("CmdMrkAMCanBypassMapOpen")) billboardPlacement = j["CmdMrkAMCanBypassMapOpen"].get<bool>();
     if (j.contains("CmdMrkBillboardPreview")) billboardPreview = j["CmdMrkBillboardPreview"].get<bool>();
+    if (j.contains("CmdMrkTriggerMarkerSize")) {
+        triggerMarkerSize = TriggerMarkerSizeFromInt(j["CmdMrkTriggerMarkerSize"].get<int>());
+    }
     if (j.contains("CmdMrkCombatPlacement")) combatPlacement = j["CmdMrkCombatPlacement"].get<bool>();
     if (j.contains("CmdMrkPlacementDelay")) placementDelayMs = j["CmdMrkPlacementDelay"].get<int>();
     if (j.contains("CmdMrkAMLibraryFilter")) libraryFilterCurrentMap = j["CmdMrkAMLibraryFilter"].get<bool>();
+    if (j.contains("CmdMrkAMCommunityShowAvailable")) {
+        communityLibraryShowAvailable = j["CmdMrkAMCommunityShowAvailable"].get<bool>();
+    }
+    if (j.contains("CmdMrkAMEditorConfirmUnsaved")) {
+        libraryEditorConfirmUnsaved = j["CmdMrkAMEditorConfirmUnsaved"].get<bool>();
+    }
 
     if (j.contains("CmdMrkCornerIconEnabled")) cornerIconEnabled = j["CmdMrkCornerIconEnabled"].get<bool>();
     if (j.contains("CmdMrkAMCornerIconAction")) {
@@ -74,7 +103,6 @@ void SettingsStore::Load(const std::string& filePath) {
     if (j.contains("CmdMrkCornerTexture")) {
         cornerTexture = SquadMarkerFromInt(j["CmdMrkCornerTexture"].get<int>());
     }
-    if (j.contains("CmdMrkCornerPriority")) cornerPriority = j["CmdMrkCornerPriority"].get<int>();
 }
 
 void SettingsStore::Save(const std::string& filePath) const {
@@ -95,13 +123,15 @@ void SettingsStore::Save(const std::string& filePath) const {
         {"CmdMrkBillboardEnabled", billboardEnabled},
         {"CmdMrkAMCanBypassMapOpen", billboardPlacement},
         {"CmdMrkBillboardPreview", billboardPreview},
+        {"CmdMrkTriggerMarkerSize", static_cast<int>(triggerMarkerSize)},
         {"CmdMrkCombatPlacement", combatPlacement},
         {"CmdMrkPlacementDelay", placementDelayMs},
         {"CmdMrkAMLibraryFilter", libraryFilterCurrentMap},
+        {"CmdMrkAMCommunityShowAvailable", communityLibraryShowAvailable},
+        {"CmdMrkAMEditorConfirmUnsaved", libraryEditorConfirmUnsaved},
         {"CmdMrkCornerIconEnabled", cornerIconEnabled},
         {"CmdMrkAMCornerIconAction", static_cast<int>(cornerIconAction)},
         {"CmdMrkCornerTexture", static_cast<int>(cornerTexture)},
-        {"CmdMrkCornerPriority", cornerPriority},
     };
 
     std::filesystem::path path(filePath);

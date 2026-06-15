@@ -1,71 +1,13 @@
 #include "data/MapDataCache.h"
 
+#include "data/Gw2MapJson.h"
 #include "data/StaticDataLoader.h"
 
+#include <algorithm>
 #include <cmath>
 #include <nlohmann/json.hpp>
 
 namespace cm {
-
-namespace {
-
-bool ParseCornerPair(const nlohmann::json& rectJ,
-                    float& firstX,
-                    float& firstY,
-                    float& secondX,
-                    float& secondY) {
-    if (!rectJ.is_array() || rectJ.size() < 2) return false;
-
-    const auto& first = rectJ[0];
-    const auto& second = rectJ[1];
-    if (!first.is_array() || first.size() < 2 || !second.is_array() || second.size() < 2) {
-        return false;
-    }
-
-    firstX = first[0].get<float>();
-    firstY = first[1].get<float>();
-    secondX = second[0].get<float>();
-    secondY = second[1].get<float>();
-    return true;
-}
-
-bool ParseMapRect(const nlohmann::json& rectJ, Gw2MapRect& out) {
-    return ParseCornerPair(rectJ, out.swX, out.swY, out.neX, out.neY);
-}
-
-bool ParseContinentRect(const nlohmann::json& rectJ, Gw2ContinentRect& out) {
-    return ParseCornerPair(rectJ, out.nwX, out.nwY, out.seX, out.seY);
-}
-
-Gw2Map Gw2MapFromJson(const nlohmann::json& j) {
-    Gw2Map map{};
-    if (!j.is_object()) return map;
-
-    map.id = j.value("id", 0);
-    map.name = j.value("name", "");
-
-    if (j.contains("map_rect")) {
-        ParseMapRect(j["map_rect"], map.mapRect);
-    }
-    if (j.contains("continent_rect")) {
-        ParseContinentRect(j["continent_rect"], map.continentRect);
-    }
-
-    return map;
-}
-
-nlohmann::json Gw2MapToJson(const Gw2Map& map) {
-    return {
-        {"id", map.id},
-        {"name", map.name},
-        {"map_rect",
-         {{{map.mapRect.swX, map.mapRect.swY}}, {{map.mapRect.neX, map.mapRect.neY}}}},
-        {"continent_rect",
-         {{{map.continentRect.nwX, map.continentRect.nwY}},
-          {{map.continentRect.seX, map.continentRect.seY}}}}};
-}
-
-}  // namespace
 
 MapDataCache::MapDataCache(std::string addonDir) : addonDir_(std::move(addonDir)) {}
 
@@ -82,7 +24,7 @@ bool MapDataCache::LoadFromDisk() {
         std::unordered_map<int, Gw2Map> maps;
         if (j.contains("Maps") && j["Maps"].is_object()) {
             for (const auto& [key, mapJ] : j["Maps"].items()) {
-                auto map = Gw2MapFromJson(mapJ);
+                auto map = Gw2MapJson::FromJson(mapJ);
                 if (map.id == 0) {
                     try {
                         map.id = std::stoi(key);
@@ -110,7 +52,7 @@ bool MapDataCache::SaveToDisk() const {
         j["BuildId"] = buildId_;
         j["Maps"] = nlohmann::json::object();
         for (const auto& [id, map] : maps_) {
-            j["Maps"][std::to_string(id)] = Gw2MapToJson(map);
+            j["Maps"][std::to_string(id)] = Gw2MapJson::ToJson(map);
         }
     }
     return StaticDataLoader::WriteCached(addonDir_, kCacheFilename, j.dump());
@@ -142,6 +84,33 @@ const Gw2Map* MapDataCache::GetMap(int mapId) const {
     return it == maps_.end() ? nullptr : &it->second;
 }
 
+std::vector<Gw2Map> MapDataCache::GetAllMaps() const {
+    std::lock_guard lock(mutex_);
+    std::vector<Gw2Map> maps;
+    maps.reserve(maps_.size());
+    for (const auto& [id, map] : maps_) {
+        (void)id;
+        maps.push_back(map);
+    }
+
+    std::sort(maps.begin(), maps.end(), [](const Gw2Map& a, const Gw2Map& b) {
+        if (a.name != b.name) {
+            return a.name < b.name;
+        }
+        return a.id < b.id;
+    });
+    return maps;
+}
+
+bool MapDataCache::MapHasGeometry(int mapId) const {
+    const Gw2Map* map = GetMap(mapId);
+    if (!map) {
+        return false;
+    }
+    return map->mapRect.Width() > 0.0f && map->mapRect.Height() > 0.0f &&
+           map->continentRect.Width() > 0.0f && map->continentRect.Height() > 0.0f;
+}
+
 std::string MapDataCache::Describe(int mapId) const {
     const Gw2Map* map = GetMap(mapId);
     if (!map || map->name.empty()) {
@@ -163,8 +132,8 @@ Vec2f MapDataCache::WorldInchesToMap(const Gw2Map& map, const Vec3f& worldInches
     return {
         map.continentRect.nwX +
             (worldInches.x - map.mapRect.swX) / mapWidth * continentWidth,
-        map.continentRect.nwY -
-            (worldInches.y - map.mapRect.swY) / mapHeight * continentHeight};
+        map.continentRect.nwY +
+            (map.mapRect.neY - worldInches.y) / mapHeight * continentHeight};
 }
 
 Vec2f MapDataCache::WorldMetersToMap(const Gw2Map& map, const Vec3f& worldMeters) {

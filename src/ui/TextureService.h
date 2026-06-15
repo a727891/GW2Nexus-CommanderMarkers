@@ -15,12 +15,15 @@ public:
     static void Shutdown();
 
     static ImTextureID GetTexture(SquadMarker marker);
+    static ImTextureID GetFadedTexture(SquadMarker marker);
     static ImTextureID GetUiTexture(const char* name);
+    static ImTextureID GetTriggerMarkerTexture();
+    static const char* SquadMarkerAssetId(SquadMarker marker);
+    static const char* SquadMarkerFadedAssetId(SquadMarker marker);
 
 private:
     static ImTextureID LoadEmbedded(const char* assetId);
     static ImTextureID LoadFromFile(const char* identifier, const std::string& relativePath);
-    static const char* SquadMarkerAssetId(SquadMarker marker);
 };
 
 }  // namespace cm

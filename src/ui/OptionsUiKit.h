@@ -31,5 +31,9 @@ bool SettingCombo(const char* label, int* currentIndex, const char* const* items
 void BeginContentPanel(ImTextureID backgroundTexture = nullptr);
 void EndContentPanel();
 
+bool IconButton(const char* id, ImTextureID icon, float size = 18.0f, const char* tooltip = nullptr);
+bool TexturedButton(const char* id, const char* label, ImTextureID icon, float iconSize = 16.0f,
+                    const ImVec2& size = ImVec2(0.0f, 0.0f));
+
 }  // namespace OptionsUiKit
 }  // namespace cm

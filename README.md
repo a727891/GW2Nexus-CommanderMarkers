@@ -7,7 +7,7 @@ Place squad markers with a click, or auto-place saved marker sets near triggers.
 ## Features
 
 - **Clickable markers panel** — ground markers (select icon, click world/minimap) and object markers (instant placement)
-- **AutoMarker** — saved marker sets with map triggers, interact placement, and 3D billboards when the map is closed
+- **AutoMarker** — saved marker sets with map triggers, interact placement, and in-game world markers when the map is closed
 - **Community library** — browse and import marker sets from shared JSON
 - **Local library** — create, edit, enable/disable, import (Base64), export, and reset presets
 - **Corner icon** — quick access to settings, library, and lieutenant mode toggle
@@ -88,7 +88,7 @@ Also confirm:
 - [ ] Addon loads without Nexus errors
 - [ ] Clickable panel: ground select+click, object instant, commander/LtMode gates
 - [ ] AutoMarker: near trigger → interact key → full set placed with delays
-- [ ] Map closed: 2m trigger bubble + 3D billboards visible
+- [ ] Map closed: 2m trigger bubble + in-game world markers visible
 - [ ] Corner icon: configured left-click actions work
 - [ ] Library CRUD: edit, enable/disable, import Base64, export, nuclear reset (Ctrl+Shift)
 - [ ] Community library loads; second launch only checks `lastEdit` (~1 KB if unchanged)
@@ -115,8 +115,8 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## Credits
 
-- **Manlaan** — Commander Markers (BlishHUD)
-- **Soeed** — Nexus port
+- **Soeed** — BlishHUD Commander Markers, and Nexus port
+- **Manlaan** — original clickable markers in BlishHUD
 - **freesnow** — static data hosting (`bhm.blishhud.com`, `assets.gw2dat.com`)
 - **Raidcore** — Nexus addon platform
 

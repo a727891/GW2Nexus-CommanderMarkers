@@ -20,8 +20,10 @@ enum class SquadMarker : int {
 };
 
 enum class PanelLayout : int {
-    Vertical = 0,
-    Horizontal = 1,
+    SideBySide = 0,    // Ground left, object right; icons stacked in each column.
+    Stacked = 1,       // Default: ground top, object bottom; icons in rows.
+    SingleRow = 2,     // All icons in one horizontal row.
+    SingleColumn = 3,  // All icons in one vertical column.
 };
 
 enum class CornerIconAction : int {
@@ -31,6 +33,24 @@ enum class CornerIconAction : int {
     Lieutenant = 3,
     ClickMarkerToggle = 4,
 };
+
+// Trigger point icon scale: Small=32px (legacy default), Normal=64px, Large=128px.
+enum class TriggerMarkerSize : int {
+    Small = 0,
+    Normal = 1,
+    Large = 2,
+};
+
+inline float TriggerMarkerSizePixels(TriggerMarkerSize size) {
+    switch (size) {
+        case TriggerMarkerSize::Normal:
+            return 64.0f;
+        case TriggerMarkerSize::Large:
+            return 128.0f;
+        default:
+            return 32.0f;
+    }
+}
 
 struct Vec2f {
     float x = 0.0f;

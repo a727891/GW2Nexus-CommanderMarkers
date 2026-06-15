@@ -31,7 +31,7 @@ void CommunityMarkerService::LoadCached() {
     }
 }
 
-const CommunitySets& CommunityMarkerService::GetCommunitySets() const {
+CommunitySets CommunityMarkerService::GetCommunitySets() const {
     std::lock_guard lock(mutex_);
     return communitySets_;
 }

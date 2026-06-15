@@ -50,25 +50,26 @@ std::optional<EGameBinds> MarkerIndexToObjectBind(int index) {
     }
 }
 
-bool IsBindAvailable(AddonAPI_t* api, EGameBinds bind) {
-    return api && api->GameBinds_IsBound && api->GameBinds_IsBound(bind);
-}
-
 void InvokeBind(AddonAPI_t* api, EGameBinds bind, int durationMs) {
-    if (!api || !api->GameBinds_InvokeAsync) {
+    if (!api || !api->GameBinds_IsBound || !api->GameBinds_IsBound(bind) ||
+        !api->GameBinds_InvokeAsync) {
         return;
     }
     api->GameBinds_InvokeAsync(bind, durationMs);
 }
 
 void CheckBind(AddonAPI_t* api, EGameBinds bind, const char* label, BindCheckResult& result) {
-    if (!IsBindAvailable(api, bind)) {
+    if (!api || !api->GameBinds_IsBound || !api->GameBinds_IsBound(bind)) {
         result.ok = false;
         result.missing.emplace_back(label);
     }
 }
 
 }  // namespace
+
+bool IsBindAvailable(AddonAPI_t* api, EGameBinds bind) {
+    return api && api->GameBinds_IsBound && api->GameBinds_IsBound(bind);
+}
 
 std::optional<EGameBinds> GroundMarkerToBind(SquadMarker marker) {
     if (marker == SquadMarker::Clear) {

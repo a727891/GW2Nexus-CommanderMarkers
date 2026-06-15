@@ -3,12 +3,16 @@
 #include "EmbeddedTextures.h"
 
 #include <filesystem>
+#include <mutex>
+#include <unordered_map>
 
 namespace cm {
 namespace {
 
 AddonAPI_t* g_api = nullptr;
 std::string g_addonDir;
+std::mutex g_cacheMutex;
+std::unordered_map<std::string, ImTextureID> g_textureCache;
 
 ImTextureID TextureFromMemory(const char* identifier, const unsigned char* data, std::size_t size) {
     if (!g_api || !g_api->Textures_GetOrCreateFromMemory || !data || size == 0) {
@@ -44,27 +48,42 @@ ImTextureID TextureFromFile(const char* identifier, const std::filesystem::path&
 void TextureService::Initialize(AddonAPI_t* api, const std::string& addonDir) {
     g_api = api;
     g_addonDir = addonDir;
-
-    static constexpr const char* kPreloadAssets[] = {
-        "arrow", "circle", "heart", "square", "star", "spiral", "triangle", "x",
-        "clear", "mapmarker", "cornerIcon",
-    };
-    for (const char* assetId : kPreloadAssets) {
-        LoadEmbedded(assetId);
-    }
 }
 
 void TextureService::Shutdown() {
+    {
+        std::lock_guard lock(g_cacheMutex);
+        g_textureCache.clear();
+    }
     g_api = nullptr;
     g_addonDir.clear();
 }
 
 ImTextureID TextureService::LoadEmbedded(const char* assetId) {
+    if (!assetId) {
+        return nullptr;
+    }
+
+    {
+        std::lock_guard lock(g_cacheMutex);
+        const auto cached = g_textureCache.find(assetId);
+        if (cached != g_textureCache.end() && cached->second) {
+            return cached->second;
+        }
+    }
+
     const EmbeddedTextures::Asset* asset = EmbeddedTextures::Find(assetId);
     if (!asset) {
         return nullptr;
     }
-    return TextureFromMemory(asset->identifier, asset->data, asset->size);
+
+    const ImTextureID texture =
+        TextureFromMemory(asset->identifier, asset->data, asset->size);
+    if (texture) {
+        std::lock_guard lock(g_cacheMutex);
+        g_textureCache[assetId] = texture;
+    }
+    return texture;
 }
 
 ImTextureID TextureService::LoadFromFile(const char* identifier, const std::string& relativePath) {
@@ -96,8 +115,45 @@ const char* TextureService::SquadMarkerAssetId(SquadMarker marker) {
     }
 }
 
+const char* TextureService::SquadMarkerFadedAssetId(SquadMarker marker) {
+    switch (marker) {
+        case SquadMarker::Arrow:
+            return "arrow_fade";
+        case SquadMarker::Circle:
+            return "circle_fade";
+        case SquadMarker::Heart:
+            return "heart_fade";
+        case SquadMarker::Square:
+            return "square_fade";
+        case SquadMarker::Star:
+            return "star_fade";
+        case SquadMarker::Spiral:
+            return "spiral_fade";
+        case SquadMarker::Triangle:
+            return "triangle_fade";
+        case SquadMarker::Cross:
+            return "x_fade";
+        default:
+            return nullptr;
+    }
+}
+
 ImTextureID TextureService::GetTexture(SquadMarker marker) {
     const char* assetId = SquadMarkerAssetId(marker);
+    if (!assetId) {
+        return nullptr;
+    }
+
+    if (ImTextureID tex = LoadEmbedded(assetId)) {
+        return tex;
+    }
+
+    return LoadFromFile(("CM_FILE_" + std::string(assetId)).c_str(),
+                        "textures/" + std::string(assetId) + ".png");
+}
+
+ImTextureID TextureService::GetFadedTexture(SquadMarker marker) {
+    const char* assetId = SquadMarkerFadedAssetId(marker);
     if (!assetId) {
         return nullptr;
     }
@@ -121,6 +177,13 @@ ImTextureID TextureService::GetUiTexture(const char* name) {
 
     return LoadFromFile(("CM_UI_" + std::string(name)).c_str(),
                         "textures/" + std::string(name) + ".png");
+}
+
+ImTextureID TextureService::GetTriggerMarkerTexture() {
+    if (ImTextureID tex = GetUiTexture("mapmarker")) {
+        return tex;
+    }
+    return GetUiTexture("blish-heart");
 }
 
 }  // namespace cm

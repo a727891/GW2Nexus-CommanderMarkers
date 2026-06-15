@@ -12,7 +12,7 @@ struct SettingsStore {
     bool onlyCommanderPanel = false;
     bool dragPanel = false;
     Vec2f panelLocation{100.0f, 100.0f};
-    PanelLayout panelOrientation = PanelLayout::Horizontal;
+    PanelLayout panelOrientation = PanelLayout::Stacked;
     int iconWidth = 30;
     float panelOpacity = 1.0f;
     bool groundMarkersEnabled = true;
@@ -26,15 +26,17 @@ struct SettingsStore {
     bool billboardEnabled = true;
     bool billboardPlacement = true;
     bool billboardPreview = true;
+    TriggerMarkerSize triggerMarkerSize = TriggerMarkerSize::Small;
     bool combatPlacement = false;
     int placementDelayMs = 100;
     bool libraryFilterCurrentMap = false;
+    bool communityLibraryShowAvailable = false;
+    bool libraryEditorConfirmUnsaved = true;
 
-    // Corner icon
+    // Quick access icon
     bool cornerIconEnabled = true;
     CornerIconAction cornerIconAction = CornerIconAction::ShowIconMenu;
     SquadMarker cornerTexture = SquadMarker::Heart;
-    int cornerPriority = 478;
 
     void Load(const std::string& filePath);
     void Save(const std::string& filePath) const;

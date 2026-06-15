@@ -1,0 +1,39 @@
+#include "utils/GameScanCode.h"
+
+#include <unordered_map>
+
+namespace cm {
+namespace {
+
+// GW2 internal scan codes -> Windows scan codes (from Nexus GbConst).
+const std::unordered_map<std::uint16_t, unsigned short> kGameScanToScan = {
+    {0, 0x38},     {1, 0x1D},     {2, 0x2A},     {3, 0x28},     {4, 0x2B},
+    {5, 0x3A},     {6, 0x33},     {7, 0x0C},     {8, 0x0D},     {9, 0x01},
+    {10, 0x1A},    {11, 0xE045},  {12, 0x34},    {13, 0x1B},    {14, 0x27},
+    {15, 0x35},    {16, 0xE037},  {17, 0x29},    {18, 0x0E},    {19, 0xE053},
+    {20, 0x1C},    {21, 0x39},    {22, 0x0F},    {23, 0xE04F},  {24, 0xE047},
+    {25, 0xE052},  {26, 0xE051},  {27, 0xE049},  {28, 0xE050},  {29, 0xE04B},
+    {30, 0xE04D},  {31, 0xE048},  {32, 0x3B},    {33, 0x3C},    {34, 0x3D},
+    {35, 0x3E},    {36, 0x3F},    {37, 0x40},    {38, 0x41},    {39, 0x42},
+    {40, 0x43},    {41, 0x44},    {42, 0x57},    {43, 0x58},    {48, 0x0B},
+    {49, 0x02},    {50, 0x03},    {51, 0x04},    {52, 0x05},    {53, 0x06},
+    {54, 0x07},    {55, 0x08},    {56, 0x09},    {57, 0x0A},    {65, 0x1E},
+    {66, 0x30},    {67, 0x2E},    {68, 0x20},    {69, 0x12},    {70, 0x21},
+    {71, 0x22},    {72, 0x23},    {73, 0x17},    {74, 0x24},    {75, 0x25},
+    {76, 0x26},    {77, 0x32},    {78, 0x31},    {79, 0x18},    {80, 0x19},
+    {81, 0x10},    {82, 0x13},    {83, 0x1F},    {84, 0x14},    {85, 0x16},
+    {86, 0x2F},    {87, 0x11},    {88, 0x2D},    {89, 0x15},    {90, 0x2C},
+    {91, 0x4E},    {92, 0x53},    {93, 0xE035},  {94, 0x37},    {95, 0x52},
+    {96, 0x4F},    {97, 0x50},    {98, 0x51},    {99, 0x4B},    {100, 0x4C},
+    {101, 0x4D},   {102, 0x47},   {103, 0x48},   {104, 0x49},   {105, 0xE01C},
+    {106, 0x4A},   {109, 0xE038}, {110, 0xE01D}, {111, 0x56},   {135, 0x36},
+};
+
+}  // namespace
+
+unsigned short GameScanCodeToScanCode(const std::uint16_t gameScanCode) {
+    const auto it = kGameScanToScan.find(gameScanCode);
+    return it != kGameScanToScan.end() ? it->second : 0;
+}
+
+}  // namespace cm

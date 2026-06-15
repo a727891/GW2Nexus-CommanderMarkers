@@ -2,7 +2,10 @@
 
 #include "core/AppState.h"
 #include "core/Branding.h"
+#include "core/MumbleUtils.h"
 #include "EmbeddedTextures.h"
+#include "ui/OptionsPanel.h"
+#include "ui/SettingsWindow.h"
 #include "ui/TextureService.h"
 
 #include <filesystem>
@@ -15,12 +18,28 @@ namespace {
 
 constexpr const char* kShortcutId = "CM_QUICKACCESS";
 constexpr const char* kToggleBind = "CM_TOGGLE";
-constexpr const char* kIconTex = "CM_ICON";
-constexpr const char* kIconHoverTex = "CM_ICON_HOVER";
 constexpr const char* kContextMenuId = "CM_CTX_MENU";
 
 bool registered_ = false;
+bool contextMenuRequested_ = false;
 std::string cachedTooltip_;
+SquadMarker cachedCornerTexture = SquadMarker::Heart;
+std::string cachedIconTexId_;
+std::string cachedHoverTexId_;
+
+const char* CornerIconFadedAssetId(SquadMarker marker) {
+    const char* assetId = TextureService::SquadMarkerFadedAssetId(marker);
+    return assetId ? assetId : "heart_fade";
+}
+
+const char* CornerIconFullAssetId(SquadMarker marker) {
+    const char* assetId = TextureService::SquadMarkerAssetId(marker);
+    return assetId ? assetId : "heart";
+}
+
+std::string QuickAccessTextureId(const char* assetId) {
+    return std::string("CM_QA_") + assetId;
+}
 
 void RenderContextMenu() {
     auto& state = AppState::Instance();
@@ -29,7 +48,7 @@ void RenderContextMenu() {
     ImGui::Separator();
 
     if (ImGui::Selectable("Open Settings")) {
-        (void)settings;
+        SettingsWindow::Open(SettingsTab::General);
     }
 
     if (ImGui::MenuItem("Lieutenant mode", nullptr, &state.ltMode)) {
@@ -85,61 +104,41 @@ bool RegisterTextureFromFile(AddonAPI_t* api, const char* identifier,
     return api->Textures_GetOrCreateFromFile(identifier, path.string().c_str()) != nullptr;
 }
 
-void LoadTextures(AddonAPI_t* api, const AppState& state) {
-    const char* markerAsset = "heart";
-    switch (state.settings.cornerTexture) {
-        case SquadMarker::Arrow:
-            markerAsset = "arrow";
-            break;
-        case SquadMarker::Circle:
-            markerAsset = "circle";
-            break;
-        case SquadMarker::Square:
-            markerAsset = "square";
-            break;
-        case SquadMarker::Star:
-            markerAsset = "star";
-            break;
-        case SquadMarker::Spiral:
-            markerAsset = "spiral";
-            break;
-        case SquadMarker::Triangle:
-            markerAsset = "triangle";
-            break;
-        case SquadMarker::Cross:
-            markerAsset = "x";
-            break;
-        case SquadMarker::Heart:
-        default:
-            markerAsset = "heart";
-            break;
+bool LoadQuickAccessTexture(AddonAPI_t* api, const char* identifier, const char* assetId,
+                            const std::string& addonDir) {
+    if (RegisterTextureAlias(api, identifier, assetId)) {
+        return true;
     }
 
-    if (!RegisterTextureAlias(api, kIconTex, markerAsset)) {
-        RegisterTextureFromFile(api, kIconTex,
-                                std::filesystem::path(state.addonDir) / "textures" /
-                                    (std::string(markerAsset) + ".png"));
-    }
+    return RegisterTextureFromFile(api, identifier,
+                                   std::filesystem::path(addonDir) / "textures" /
+                                       (std::string(assetId) + ".png"));
+}
 
-    if (!RegisterTextureAlias(api, kIconHoverTex, "cornerIcon")) {
-        RegisterTextureFromFile(api, kIconHoverTex,
-                                std::filesystem::path(state.addonDir) / "textures" /
-                                    "cornerIcon.png");
-    }
+bool LoadTextures(AddonAPI_t* api, const AppState& state, std::string* iconTexId,
+                  std::string* hoverTexId) {
+    const char* fadedAssetId = CornerIconFadedAssetId(state.settings.cornerTexture);
+    const char* fullAssetId = CornerIconFullAssetId(state.settings.cornerTexture);
 
-    (void)TextureService::GetTexture(state.settings.cornerTexture);
+    *iconTexId = QuickAccessTextureId(fadedAssetId);
+    *hoverTexId = QuickAccessTextureId(fullAssetId);
+
+    return LoadQuickAccessTexture(api, iconTexId->c_str(), fadedAssetId, state.addonDir) &&
+           LoadQuickAccessTexture(api, hoverTexId->c_str(), fullAssetId, state.addonDir);
 }
 
 std::string BuildTooltip(const AppState& state) {
     std::string tooltip = kDisplayName;
-    if (state.mumbleLink && state.mumbleLink->Name[0] != L'\0') {
+    if (cm::IsInGame(state.mumbleLink, state.nexusLink)) {
         tooltip += "\nUse the context menu for library and settings.";
     }
     return tooltip;
 }
 
 void ReregisterShortcut(AddonAPI_t* api, AppState& state) {
-    if (!api || !registered_) return;
+    if (!api || !registered_) {
+        return;
+    }
 
     api->QuickAccess_RemoveContextMenu(kContextMenuId);
     api->QuickAccess_Remove(kShortcutId);
@@ -150,8 +149,10 @@ void ReregisterShortcut(AddonAPI_t* api, AppState& state) {
 void ExecuteLeftClickAction(AppState& state) {
     switch (state.settings.cornerIconAction) {
         case CornerIconAction::ShowSettings:
+            SettingsWindow::Open(SettingsTab::General);
             break;
         case CornerIconAction::Library:
+            SettingsWindow::Open(SettingsTab::AutoMarkerLibrary);
             break;
         case CornerIconAction::Lieutenant:
             state.ltMode = !state.ltMode;
@@ -162,34 +163,78 @@ void ExecuteLeftClickAction(AppState& state) {
             break;
         case CornerIconAction::ShowIconMenu:
         default:
+            contextMenuRequested_ = true;
             break;
     }
+}
+
+void RenderLeftClickContextMenu() {
+    if (contextMenuRequested_) {
+        ImGui::SetNextWindowPos(ImGui::GetMousePos());
+        ImGui::OpenPopup("CM_CORNER_CTX");
+        contextMenuRequested_ = false;
+    }
+
+    if (ImGui::BeginPopup("CM_CORNER_CTX")) {
+        RenderContextMenu();
+        ImGui::EndPopup();
+    }
+}
+
+bool TexturesReady(AddonAPI_t* api, const std::string& iconTexId, const std::string& hoverTexId) {
+    if (!api || !api->Textures_Get) {
+        return false;
+    }
+
+    const Texture_t* icon = api->Textures_Get(iconTexId.c_str());
+    const Texture_t* hover = api->Textures_Get(hoverTexId.c_str());
+    return icon && icon->Resource && hover && hover->Resource;
 }
 
 }  // namespace
 
 void Register(AddonAPI_t* api, AppState& state) {
-    if (!api || registered_) return;
+    if (!api || registered_) {
+        return;
+    }
 
-    LoadTextures(api, state);
+    std::string iconTexId;
+    std::string hoverTexId;
+    if (!LoadTextures(api, state, &iconTexId, &hoverTexId)) {
+        return;
+    }
+    if (!TexturesReady(api, iconTexId, hoverTexId)) {
+        return;
+    }
 
     cachedTooltip_ = BuildTooltip(state);
-    api->QuickAccess_Add(kShortcutId, kIconTex, kIconHoverTex, kToggleBind, cachedTooltip_.c_str());
+    cachedCornerTexture = state.settings.cornerTexture;
+    cachedIconTexId_ = iconTexId;
+    cachedHoverTexId_ = hoverTexId;
+    api->QuickAccess_Add(kShortcutId, iconTexId.c_str(), hoverTexId.c_str(), kToggleBind,
+                         cachedTooltip_.c_str());
     api->QuickAccess_AddContextMenu(kContextMenuId, kShortcutId, RenderContextMenu);
     registered_ = true;
+    api->Log(LOGL_INFO, cm::kLogChannel, "QuickAccess icon registered.");
 }
 
 void Unregister(AddonAPI_t* api) {
-    if (!api || !registered_) return;
+    if (!api || !registered_) {
+        return;
+    }
 
     api->QuickAccess_RemoveContextMenu(kContextMenuId);
     api->QuickAccess_Remove(kShortcutId);
     registered_ = false;
     cachedTooltip_.clear();
+    cachedIconTexId_.clear();
+    cachedHoverTexId_.clear();
 }
 
 void Refresh(AddonAPI_t* api, AppState& state) {
-    if (!api || !state.settings.cornerIconEnabled) return;
+    if (!api || !state.settings.cornerIconEnabled) {
+        return;
+    }
 
     if (!registered_) {
         Register(api, state);
@@ -197,21 +242,27 @@ void Refresh(AddonAPI_t* api, AppState& state) {
     }
 
     const auto tooltip = BuildTooltip(state);
-    if (tooltip != cachedTooltip_) {
+    if (tooltip != cachedTooltip_ || state.settings.cornerTexture != cachedCornerTexture) {
         ReregisterShortcut(api, state);
     }
 }
 
 void OnShortcutActivated(AppState& state) { ExecuteLeftClickAction(state); }
 
+void ProcessFrame() { RenderLeftClickContextMenu(); }
+
 void SyncVisibility(AddonAPI_t* api, AppState& state) {
-    if (!api) return;
+    if (!api) {
+        return;
+    }
     if (state.settings.cornerIconEnabled) {
         Refresh(api, state);
     } else {
         Unregister(api);
     }
 }
+
+bool IsRegistered() { return registered_; }
 
 }  // namespace QuickAccessService
 }  // namespace cm

@@ -25,6 +25,7 @@ public:
     std::vector<MarkerSet> GetMarkersForMap(int mapId) const;
 
     void SaveMarker(const MarkerSet& markerSet);
+    bool ContainsMarkerSet(const MarkerSet& markerSet) const;
     void EditMarker(size_t index, const MarkerSet& markerSet);
     void DeleteMarker(const MarkerSet& markerSet);
     void ResetToDefault();
@@ -44,6 +45,7 @@ private:
     std::string version_ = "2.0.0";
     std::vector<MarkerSet> presets_;
     std::function<void()> onMarkersChanged_;
+    bool suppressNotify_ = false;
     mutable std::mutex mutex_;
 };
 

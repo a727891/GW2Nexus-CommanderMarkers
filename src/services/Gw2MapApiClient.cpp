@@ -1,6 +1,7 @@
 #include "services/Gw2MapApiClient.h"
 
 #include "core/Branding.h"
+#include "data/Gw2MapJson.h"
 #include "services/HttpClient.h"
 
 #include <chrono>
@@ -15,45 +16,6 @@ namespace {
 constexpr const char* kMapsUrl = "https://api.guildwars2.com/v2/maps?ids=all";
 constexpr int kMaxRetries = 3;
 constexpr int kRetryDelayMs = 30000;
-
-bool ParseCornerPair(const nlohmann::json& rectJ,
-                     float& firstX,
-                     float& firstY,
-                     float& secondX,
-                     float& secondY) {
-    if (!rectJ.is_array() || rectJ.size() < 2) return false;
-
-    const auto& first = rectJ[0];
-    const auto& second = rectJ[1];
-    if (!first.is_array() || first.size() < 2 || !second.is_array() || second.size() < 2) {
-        return false;
-    }
-
-    firstX = first[0].get<float>();
-    firstY = first[1].get<float>();
-    secondX = second[0].get<float>();
-    secondY = second[1].get<float>();
-    return true;
-}
-
-Gw2Map Gw2MapFromJson(const nlohmann::json& j) {
-    Gw2Map map{};
-    if (!j.is_object()) return map;
-
-    map.id = j.value("id", 0);
-    map.name = j.value("name", "");
-
-    if (j.contains("map_rect")) {
-        ParseCornerPair(j["map_rect"], map.mapRect.swX, map.mapRect.swY, map.mapRect.neX,
-                        map.mapRect.neY);
-    }
-    if (j.contains("continent_rect")) {
-        ParseCornerPair(j["continent_rect"], map.continentRect.nwX, map.continentRect.nwY,
-                        map.continentRect.seX, map.continentRect.seY);
-    }
-
-    return map;
-}
 
 void Log(AddonAPI_t* api, ELogLevel level, const char* message) {
     if (api) {
@@ -104,7 +66,7 @@ bool Gw2MapApiClient::Refresh(MapDataCache& cache, int buildId, AddonAPI_t* api)
         std::unordered_map<int, Gw2Map> maps;
         maps.reserve(j.size());
         for (const auto& mapJ : j) {
-            Gw2Map map = Gw2MapFromJson(mapJ);
+            Gw2Map map = Gw2MapJson::FromJson(mapJ);
             if (map.id == 0) {
                 continue;
             }

@@ -23,6 +23,7 @@ std::mutex g_mutex;
 std::unordered_map<int, ImTextureID> g_textures;
 std::unordered_set<int> g_pending;
 std::unordered_set<int> g_downloading;
+std::unordered_set<int> g_readyToLoad;
 std::atomic<bool> g_workerRunning{false};
 
 std::string CacheDir() {
@@ -38,13 +39,19 @@ std::string TextureIdentifier(int assetId) {
 }
 
 ImTextureID TextureFromFile(int assetId) {
-    if (!g_api || !g_api->Textures_GetOrCreateFromFile) return nullptr;
+    if (!g_api || !g_api->Textures_GetOrCreateFromFile) {
+        return nullptr;
+    }
     const auto path = CachePath(assetId);
-    if (!std::filesystem::exists(path)) return nullptr;
+    if (!std::filesystem::exists(path)) {
+        return nullptr;
+    }
 
     Texture_t* texture =
         g_api->Textures_GetOrCreateFromFile(TextureIdentifier(assetId).c_str(), path.c_str());
-    if (!texture || !texture->Resource) return nullptr;
+    if (!texture || !texture->Resource) {
+        return nullptr;
+    }
     return reinterpret_cast<ImTextureID>(texture->Resource);
 }
 
@@ -52,31 +59,33 @@ void DownloadAsset(int assetId) {
     const auto url = std::string(kBaseUrl) + std::to_string(assetId) + ".png";
     HttpRequestOptions options{};
     const auto body = HttpGetUrl(url, options);
-    if (!body || body->empty()) return;
+    if (!body || body->empty()) {
+        return;
+    }
 
     std::error_code ec;
     std::filesystem::create_directories(CacheDir(), ec);
     std::ofstream out(CachePath(assetId), std::ios::binary);
-    if (!out.is_open()) return;
+    if (!out.is_open()) {
+        return;
+    }
     out.write(body->data(), static_cast<std::streamsize>(body->size()));
 }
 
 void WorkerLoop(std::vector<int> batch) {
     for (int assetId : batch) {
-        if (assetId <= 0) continue;
-        if (std::filesystem::exists(CachePath(assetId))) {
-            if (auto tex = TextureFromFile(assetId)) {
-                std::lock_guard lock(g_mutex);
-                g_textures[assetId] = tex;
-                g_pending.erase(assetId);
-            }
+        if (assetId <= 0) {
             continue;
         }
 
-        DownloadAsset(assetId);
-        if (auto tex = TextureFromFile(assetId)) {
+        const auto path = CachePath(assetId);
+        if (!std::filesystem::exists(path)) {
+            DownloadAsset(assetId);
+        }
+
+        if (std::filesystem::exists(path)) {
             std::lock_guard lock(g_mutex);
-            g_textures[assetId] = tex;
+            g_readyToLoad.insert(assetId);
             g_pending.erase(assetId);
         }
     }
@@ -90,16 +99,47 @@ void WorkerLoop(std::vector<int> batch) {
     g_workerRunning.store(false);
 }
 
+void FinalizeDownloadsOnMainThread() {
+    if (!g_api) {
+        return;
+    }
+
+    std::vector<int> ready;
+    {
+        std::lock_guard lock(g_mutex);
+        ready.assign(g_readyToLoad.begin(), g_readyToLoad.end());
+    }
+
+    for (int assetId : ready) {
+        ImTextureID texture = TextureFromFile(assetId);
+        if (!texture) {
+            continue;
+        }
+
+        std::lock_guard lock(g_mutex);
+        g_textures[assetId] = texture;
+        g_readyToLoad.erase(assetId);
+        g_pending.erase(assetId);
+    }
+}
+
 }  // namespace
 
 void DatAssetIconService::Initialize(AddonAPI_t* api, const std::string& addonDir) {
     g_api = api;
     g_addonDir = addonDir;
-    std::lock_guard lock(g_mutex);
-    g_textures.clear();
-    g_pending.clear();
-    g_downloading.clear();
-    Request(kInteractBubbleAssetId);
+    {
+        std::lock_guard lock(g_mutex);
+        g_textures.clear();
+        g_pending.clear();
+        g_downloading.clear();
+        g_readyToLoad.clear();
+    }
+
+    if (LoadFromDisk(kInteractBubbleAssetId)) {
+        return;
+    }
+    QueueDownload(kInteractBubbleAssetId);
 }
 
 void DatAssetIconService::Shutdown() {
@@ -107,47 +147,67 @@ void DatAssetIconService::Shutdown() {
     g_textures.clear();
     g_pending.clear();
     g_downloading.clear();
+    g_readyToLoad.clear();
     g_api = nullptr;
     g_addonDir.clear();
 }
 
 ImTextureID DatAssetIconService::LoadFromDisk(int assetId) {
-    if (assetId <= 0) return nullptr;
+    if (assetId <= 0) {
+        return nullptr;
+    }
 
     {
         std::lock_guard lock(g_mutex);
         const auto it = g_textures.find(assetId);
-        if (it != g_textures.end() && it->second) return it->second;
+        if (it != g_textures.end() && it->second) {
+            return it->second;
+        }
     }
 
     if (auto tex = TextureFromFile(assetId)) {
         std::lock_guard lock(g_mutex);
         g_textures[assetId] = tex;
+        g_readyToLoad.erase(assetId);
         return tex;
     }
     return nullptr;
 }
 
 void DatAssetIconService::QueueDownload(int assetId) {
-    if (assetId <= 0) return;
+    if (assetId <= 0) {
+        return;
+    }
 
     std::lock_guard lock(g_mutex);
-    if (g_textures.count(assetId) > 0) return;
-    if (g_pending.count(assetId) > 0 || g_downloading.count(assetId) > 0) return;
+    if (g_textures.count(assetId) > 0) {
+        return;
+    }
+    if (g_pending.count(assetId) > 0 || g_downloading.count(assetId) > 0) {
+        return;
+    }
     g_pending.insert(assetId);
 }
 
 void DatAssetIconService::ProcessDownloads() {
+    FinalizeDownloadsOnMainThread();
+
     std::vector<int> batch;
     {
         std::lock_guard lock(g_mutex);
-        if (g_workerRunning.load() || g_pending.empty()) return;
+        if (g_workerRunning.load() || g_pending.empty()) {
+            return;
+        }
         for (int assetId : g_pending) {
-            if (g_downloading.count(assetId) > 0) continue;
+            if (g_downloading.count(assetId) > 0) {
+                continue;
+            }
             g_downloading.insert(assetId);
             batch.push_back(assetId);
         }
-        if (batch.empty()) return;
+        if (batch.empty()) {
+            return;
+        }
         g_workerRunning.store(true);
     }
 
@@ -155,12 +215,15 @@ void DatAssetIconService::ProcessDownloads() {
 }
 
 ImTextureID DatAssetIconService::Request(int assetId) {
-    if (assetId <= 0) return nullptr;
+    if (assetId <= 0) {
+        return nullptr;
+    }
 
-    if (auto tex = LoadFromDisk(assetId)) return tex;
+    if (auto tex = LoadFromDisk(assetId)) {
+        return tex;
+    }
 
     QueueDownload(assetId);
-    ProcessDownloads();
     return nullptr;
 }
 

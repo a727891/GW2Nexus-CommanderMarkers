@@ -24,7 +24,8 @@ public:
     static constexpr int kInteractCooldownMs = 3000;
 
     void Initialize(MapDataCache* mapData, MarkerListing* markerListing,
-                    MarkerPlacementService* placementService, SettingsStore* settings);
+                    MarkerPlacementService* placementService, SettingsStore* settings,
+                    const Mumble::Identity* const* playerIdentity);
 
     void Update(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode, float uiScale);
     void OnInteractKey(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode, float uiScale);
@@ -33,6 +34,8 @@ public:
     void SetPreviewMarkerSet(const MarkerSet& markerSet);
     void RemovePreviewMarkerSet();
     const MarkerSet* ActivePreview() const;
+    bool IsManualPreview() const { return manualPreviewActive_; }
+    bool ShouldShowMapPreview(const Mumble::Data* mumble) const;
 
     void PlaceMarkerSet(const MarkerSet& markerSet, Mumble::Data* mumble, NexusLinkData_t* nexus,
                         float uiScale);
@@ -49,11 +52,14 @@ private:
     MarkerListing* markerListing_ = nullptr;
     MarkerPlacementService* placementService_ = nullptr;
     SettingsStore* settings_ = nullptr;
+    const Mumble::Identity* const* playerIdentity_ = nullptr;
 
     int currentMapId_ = 0;
     std::vector<MarkerSet> currentMarkers_;
     std::optional<MarkerSet> previewMarkerSet_;
+    bool manualPreviewActive_ = false;
     uint64_t lastTriggerMs_ = 0;
+    bool lastAutoMarkerEnabled_ = true;
 };
 
 }  // namespace cm

@@ -17,7 +17,7 @@ public:
 
     void LoadCached();
     bool SyncCommunity();
-    const CommunitySets& GetCommunitySets() const;
+    CommunitySets GetCommunitySets() const;
 
 private:
     std::string addonDir_;

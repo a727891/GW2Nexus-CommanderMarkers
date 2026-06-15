@@ -24,6 +24,7 @@ public:
     AddonAPI_t* api = nullptr;
     NexusLinkData_t* nexusLink = nullptr;
     Mumble::Data* mumbleLink = nullptr;
+    const Mumble::Identity* playerIdentity = nullptr;
     std::string addonDir;
 
     SettingsStore settings;
@@ -37,14 +38,30 @@ public:
 
     std::atomic<bool> communitySyncPending{false};
     std::atomic<bool> communitySyncInProgress{false};
+    std::atomic<bool> communityUpdatedNotice{false};
     std::atomic<bool> mapRefreshPending{false};
     std::atomic<bool> mapRefreshInProgress{false};
+    std::atomic<bool> mapUpdatedNotice{false};
     int lastMapRefreshBuildId = 0;
+    int initStep = 0;
+    uint32_t stableMapId = 0;
+    uint32_t stableMumbleTick = 0;
+    int stableFrameCount = 0;
+
+    static constexpr int kStableFramesRequired = 30;
+
+    bool loadInitialized = false;
+    bool optionsReady = false;
+    bool renderInitialized = false;
 
     bool requiredBindsOk = false;
     bool warnedUnboundBinds = false;
 
-    void Initialize(AddonAPI_t* apiPtr);
+    void PrepareLoad(AddonAPI_t* apiPtr);
+    void EnsureOptionsReady();
+    void ProcessDeferredInit();
+    bool IsReady() const { return loadInitialized; }
+    bool IsOptionsReady() const { return optionsReady; }
     void Shutdown();
 
     void RequestCommunitySync();
@@ -53,10 +70,14 @@ public:
     void RequestMapRefresh();
     void ProcessPendingMapRefresh();
 
+    void ProcessRenderInit();
+    void ProcessBackgroundNotices();
+
     std::string settingsPath() const;
 
 private:
     void CheckRequiredBinds();
+    bool AdvanceMumbleStability();
     float UiScale() const;
 
     AppState();
