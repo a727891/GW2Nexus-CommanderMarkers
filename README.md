@@ -8,8 +8,11 @@ Place squad markers with a click, or auto-place saved marker sets near triggers.
 
 - **Clickable markers panel** — ground markers (select icon, click world/minimap) and object markers (instant placement)
 - **AutoMarker** — saved marker sets with map triggers, interact placement, and in-game world markers when the map is closed
-- **Community library** — browse and import marker sets from shared JSON
-- **Local library** — create, edit, enable/disable, import (Base64), export, and reset presets
+- **Dedicated settings window** — full UI in an owned ImGui window (opened from Nexus addon config or the corner icon); Nexus config page shows a launcher only
+- **Marker set editor** — separate editor window for local library sets: per-slot placement, Base64 import/export, optional RTAPI squad-marker import, unsaved-close and delete confirmations (hold **Shift** to skip)
+- **Community library** — browse, search, and import marker sets from shared JSON; **Only Show available** hides sets already in your library; import shows a Nexus alert on success
+- **Local library** — search filter, enable/disable sets, create/edit/delete, Base64 import/export, nuclear reset (Ctrl+Shift)
+- **Real-Time API (optional)** — when [Real-Time API](https://raidcore.gg/gw2/nexus) is installed and active, squad commander/lieutenant roles augment mumble commander checks; editor can import live squad marker positions
 - **Corner icon** — quick access to settings, library, and lieutenant mode toggle
 - **Quick access keybind** — `CM_INTERACT` (default `F`) for AutoMarker interact placement
 
@@ -26,7 +29,8 @@ Squad marker placement uses **Guild Wars 2 in-game keybinds** (via Nexus `GameBi
 1. Copy `NexusCommanderMarkers.dll` to `<GW2>/addons/` (directly in `addons/`, not a subfolder)
 2. Launch GW2 with Nexus enabled
 3. Enable **Commander Markers** in Nexus addon settings
-4. Assign squad marker keybinds in GW2 if you have not already
+4. Click **Open Commander Markers Settings** on the addon page (or use the corner icon) to configure options and libraries
+5. Assign squad marker keybinds in GW2 if you have not already
 
 Textures and the corner icon are **embedded in the DLL** at build time. End users only need the single DLL file.
 
@@ -86,12 +90,17 @@ Also confirm:
 ## Manual test checklist
 
 - [ ] Addon loads without Nexus errors
+- [ ] Settings window opens from Nexus addon config and corner icon; all six tabs render (About shows RTAPI status)
 - [ ] Clickable panel: ground select+click, object instant, commander/LtMode gates
+- [ ] AutoMarker settings: Map Icons / In Game World Icons sections match expected toggles
 - [ ] AutoMarker: near trigger → interact key → full set placed with delays
-- [ ] Map closed: 2m trigger bubble + in-game world markers visible
+- [ ] Map closed: 2m trigger bubble + in-game world markers visible when enabled in settings
 - [ ] Corner icon: configured left-click actions work
-- [ ] Library CRUD: edit, enable/disable, import Base64, export, nuclear reset (Ctrl+Shift)
-- [ ] Community library loads; second launch only checks `lastEdit` (~1 KB if unchanged)
+- [ ] Local library: search filter, enable/disable (Active/Disabled), open editor, save validation
+- [ ] Marker set editor: unsaved-close prompt, delete confirm (Shift skips both), Base64 import/export
+- [ ] RTAPI (if installed): About tab shows active; editor **Import** / **Import active squad markers** work in squad
+- [ ] Community library: search, **Only Show available**, import disabled for duplicates, Nexus alert on import
+- [ ] Community sync: second launch only checks `lastEdit` (~1 KB if unchanged); Ctrl+Shift redownload works
 - [ ] Windowed mode: marker placement not offset (Win32 client origin fix)
 - [ ] Unbound squad marker binds: warning shown; placement blocked until GW2 binds assigned
 

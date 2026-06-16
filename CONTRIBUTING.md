@@ -48,13 +48,17 @@ See [README.md](README.md) for details.
 |------|---------|
 | `src/core/` | Settings, app state, mumble helpers, branding |
 | `src/data/` | JSON models, map cache, static loader |
-| `src/services/` | HTTP, community sync, marker listing, placement, map watch |
-| `src/ui/` | ImGui panels, overlays, billboards, options, corner icon |
+| `src/services/` | HTTP, community sync, marker listing, placement, map watch, optional RTAPI |
+| `src/ui/` | Settings window, marker set editor, library/community UI, overlays, in-game world markers, corner icon |
 | `src/utils/` | GameBind placement, Win32 cursor helpers |
 | `assets/textures/` | PNG sources embedded at build time |
 | `assets/data/` | Default local marker library seed |
 | `extern/nexus/` | Nexus addon API headers |
+| `extern/rtapi/` | Real-Time API header (`RTAPI.h`) for optional squad role integration |
+| `docs/` | Maintainer handoffs (`DEBUGGING.md`, `MUMBLE_HANDOFF.md`, port plan) |
 | `cmake/` | MinGW cross-compile toolchain |
+
+Key UI entry points: `SettingsWindow.cpp` (owned options window), `MarkerSetEditorWindow.cpp` (library editor), `OptionsPanel.cpp` (tab content), `LibraryEditorUi.cpp` / `CommunityLibraryUi.cpp` (library tabs), `LibrarySearchUi.h` (shared search filter).
 
 ---
 
@@ -102,7 +106,7 @@ The built-in default presets (`assets/data/default_markers.json`) seed the user'
 
 ## Code changes
 
-When behavior differs from Blish, treat the C# module as the source of truth and mirror logic in C++ with Nexus APIs (`GameBinds_*`, ImGui overlays, mumble identity for commander checks).
+When behavior differs from Blish, treat the C# module as the source of truth and mirror logic in C++ with Nexus APIs (`GameBinds_*`, ImGui overlays, mumble identity for commander checks). When [Real-Time API](https://raidcore.gg/gw2/nexus) is installed and active, `RtApiService` and `HasCommanderPermissions()` also honor squad commander/lieutenant roles.
 
 Keybind policy for Nexus:
 
