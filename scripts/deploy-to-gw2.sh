@@ -12,7 +12,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$ROOT/build"
 DIST_DIR="$ROOT/dist"
-ADDONS_DIR="/home/soeed/.local/share/Steam/steamapps/common/Guild Wars 2/addons"
+ADDONS_DIR="/home/soeed/steam/steamapps/common/Guild Wars 2/addons"
 ADDON_DATA_DIR="NexusCommanderMarkers"
 CACHE_DIR="$ADDON_DATA_DIR/commanderMarkers"
 DEFAULT_MARKERS_SRC="$ROOT/assets/data/default_markers.json"
