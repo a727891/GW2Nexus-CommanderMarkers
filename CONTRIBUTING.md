@@ -56,7 +56,6 @@ See [README.md](README.md) for details.
 | `assets/data/` | Default local marker library seed |
 | `extern/nexus/` | Nexus addon API headers |
 | `extern/rtapi/` | Real-Time API header (`RTAPI.h`) for optional squad role integration |
-| `docs/` | Maintainer handoffs (`DEBUGGING.md`, `MUMBLE_HANDOFF.md`, port plan) |
 | `cmake/` | MinGW cross-compile toolchain |
 
 Key UI entry points: `SettingsWindow.cpp` (owned options window), `MarkerSetEditorWindow.cpp` (library editor), `OptionsPanel.cpp` (tab content), `LibraryEditorUi.cpp` / `CommunityLibraryUi.cpp` (library tabs), `LibrarySearchUi.h` (shared search filter).
@@ -98,10 +97,6 @@ HTTP requests send `User-Agent: COMM-MARKERS-Nexus/<version>`.
 4. Open a pull request against the static branch. BlishHUD and Nexus clients will sync after merge and deploy to `bhm.blishhud.com`.
 
 Use the Blish module's AutoMarker Library editor or existing entries in `Markers.json` as schema reference.
-
-### Local default library
-
-The built-in default presets (`assets/data/default_markers.json`) seed the user's local AutoMarker library on first run. Changing defaults requires a Nexus release; they are not fetched from the static host.
 
 ---
 

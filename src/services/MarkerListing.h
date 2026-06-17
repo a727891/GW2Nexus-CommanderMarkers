@@ -12,7 +12,6 @@ namespace cm {
 class MarkerListing {
 public:
     static constexpr const char* kFilename = "custom_markers.json";
-    static constexpr const char* kDefaultFilename = "default_markers.json";
 
     explicit MarkerListing(std::string addonDir = {});
 
@@ -36,8 +35,7 @@ public:
     void SetOnMarkersChanged(std::function<void()> callback);
 
 private:
-    static MarkerListingFile InitDefaultPresets();
-    bool TryLoadDefaultFile(MarkerListingFile& out) const;
+    static bool LoadBuiltinDefaults(MarkerListingFile& out);
     void ApplyListing(MarkerListingFile listing);
     void NotifyChanged();
 

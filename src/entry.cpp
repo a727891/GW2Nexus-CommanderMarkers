@@ -1,6 +1,5 @@
 #include "core/AppState.h"
 #include "core/Branding.h"
-#include "core/FeatureFlags.h"
 #include "Version.h"
 #include "core/MumbleUtils.h"
 #include "ui/BillboardRenderer.h"
@@ -42,20 +41,6 @@ void RefreshDataLinks(cm::AppState& state) {
         static_cast<const Mumble::Identity*>(g_api->DataLink_Get(DL_MUMBLE_LINK_IDENTITY));
 }
 
-void LogWorldReadyOnce(const cm::AppState& state) {
-    if (!cm::features::kDebugWorldReadyLog || !g_api) {
-        return;
-    }
-
-    static bool logged = false;
-    if (logged || !cm::IsWorldReady(state.mumbleLink, state.nexusLink)) {
-        return;
-    }
-
-    logged = true;
-    g_api->Log(LOGL_INFO, cm::kLogChannel, "World ready (minimal mode).");
-}
-
 void OnGameInteract() {
     auto& state = cm::AppState::Instance();
     if (!state.IsReady()) {
@@ -67,7 +52,7 @@ void OnGameInteract() {
 }
 
 void OnToggle(const char*, bool isRelease) {
-    if (isRelease || !cm::features::kQuickAccess) {
+    if (isRelease) {
         return;
     }
 
@@ -76,7 +61,7 @@ void OnToggle(const char*, bool isRelease) {
 
 void AddonLoad(AddonAPI_t* api) {
     g_api = api;
-    api->Log(LOGL_INFO, cm::kLogChannel, "AddonLoad starting (minimal baseline).");
+    api->Log(LOGL_INFO, cm::kLogChannel, "AddonLoad starting.");
 
     ImGui::SetCurrentContext(static_cast<ImGuiContext*>(api->ImguiContext));
     ImGui::SetAllocatorFunctions(
@@ -88,18 +73,10 @@ void AddonLoad(AddonAPI_t* api) {
     api->GUI_Register(RT_Render, AddonRender);
     api->GUI_Register(RT_OptionsRender, AddonOptions);
 
-    if (cm::features::kQuickAccess) {
-        Keybind_t defaultBind{};
-        api->InputBinds_RegisterWithStruct(kToggleBind, OnToggle, defaultBind);
-    }
-
-    if (cm::features::kRegisterInputBind) {
-        cm::InteractBindService::Register(api, OnGameInteract);
-    }
-
-    if (cm::features::kMarkersPanel) {
-        cm::MarkersPanel::RegisterInput(api);
-    }
+    Keybind_t defaultBind{};
+    api->InputBinds_RegisterWithStruct(kToggleBind, OnToggle, defaultBind);
+    cm::InteractBindService::Register(api, OnGameInteract);
+    cm::MarkersPanel::RegisterInput(api);
 
     api->Log(LOGL_INFO, cm::kLogChannel, "Loaded.");
 }
@@ -111,28 +88,12 @@ void AddonUnload() {
 
     g_api->GUI_Deregister(AddonRender);
     g_api->GUI_Deregister(AddonOptions);
-
-    if (cm::features::kQuickAccess) {
-        g_api->InputBinds_Deregister(kToggleBind);
-    }
-
-    if (cm::features::kRegisterInputBind) {
-        cm::InteractBindService::Unregister(g_api);
-    }
-
-    if (cm::features::kMarkersPanel) {
-        cm::MarkersPanel::UnregisterInput(g_api);
-    }
-
-    if (cm::features::kQuickAccess) {
-        cm::QuickAccessService::Unregister(g_api);
-    }
-    if (cm::features::kDatAssetIcons) {
-        cm::DatAssetIconService::Shutdown();
-    }
-    if (cm::features::kDeferredInit) {
-        cm::TextureService::Shutdown();
-    }
+    g_api->InputBinds_Deregister(kToggleBind);
+    cm::InteractBindService::Unregister(g_api);
+    cm::MarkersPanel::UnregisterInput(g_api);
+    cm::QuickAccessService::Unregister(g_api);
+    cm::DatAssetIconService::Shutdown();
+    cm::TextureService::Shutdown();
 
     cm::AppState::Instance().Shutdown();
     g_api->Log(LOGL_INFO, cm::kLogChannel, "Unloaded.");
@@ -147,12 +108,6 @@ void AddonRender() {
     auto& state = cm::AppState::Instance();
     RefreshDataLinks(state);
 
-    LogWorldReadyOnce(state);
-
-    if (!cm::features::kDeferredInit) {
-        return;
-    }
-
     if (!cm::IsWorldReady(state.mumbleLink, state.nexusLink)) {
         return;
     }
@@ -163,53 +118,33 @@ void AddonRender() {
     }
 
     state.ProcessBackgroundNotices();
-
     cm::RtApiService::Tick();
+    state.ProcessPendingCommunitySync();
+    state.ProcessPendingMapRefresh();
 
-    if (cm::features::kBackgroundSync) {
-        state.ProcessPendingCommunitySync();
-        state.ProcessPendingMapRefresh();
-    }
+    state.ProcessRenderInit();
+    cm::QuickAccessService::ProcessFrame();
+    cm::QuickAccessService::SyncVisibility(g_api, state);
 
-    if (cm::features::kQuickAccess) {
-        state.ProcessRenderInit();
-        cm::QuickAccessService::ProcessFrame();
-        cm::QuickAccessService::SyncVisibility(g_api, state);
+    if (state.mumbleLink && state.nexusLink) {
+        state.mapWatch.Update(state.mumbleLink, state.nexusLink, state.ltMode,
+                              state.nexusLink->Scaling);
     }
-
-    if (cm::features::kMapWatch) {
-        if (state.mumbleLink && state.nexusLink) {
-            state.mapWatch.Update(state.mumbleLink, state.nexusLink, state.ltMode,
-                                  state.nexusLink->Scaling);
-        }
-        state.placementService.Tick();
-    }
-
-    if (cm::features::kDatAssetIcons) {
-        cm::DatAssetIconService::ProcessDownloads();
-    }
+    state.placementService.Tick();
+    cm::DatAssetIconService::ProcessDownloads();
 
     // World overlays first (sent to display back), settings window last so it stays on top.
-    if (cm::features::kMarkersPanel) {
-        cm::MarkersPanel::Render(state);
-    }
-    if (cm::features::kScreenMapOverlay) {
-        cm::ScreenMapOverlay::Render(state);
-    }
-    if (cm::features::kBillboards) {
-        cm::BillboardRenderer::Render(state);
-    }
+    cm::MarkersPanel::Render(state);
+    cm::ScreenMapOverlay::Render(state);
+    cm::BillboardRenderer::Render(state);
 
-    if (cm::features::kOptionsPanel && cm::SettingsWindow::IsOpen()) {
+    if (cm::SettingsWindow::IsOpen()) {
         state.EnsureOptionsReady();
-        if (cm::features::kDeferredInit &&
-            cm::IsWorldReady(state.mumbleLink, state.nexusLink)) {
-            state.ProcessDeferredInit();
-        }
+        state.ProcessDeferredInit();
         cm::SettingsWindow::Render(state);
     }
 
-    if (cm::features::kOptionsPanel && cm::MarkerSetEditorWindow::IsOpen()) {
+    if (cm::MarkerSetEditorWindow::IsOpen()) {
         state.EnsureOptionsReady();
         cm::MarkerSetEditorWindow::Render(state);
     }
@@ -222,21 +157,11 @@ void AddonOptions() {
 
     auto& state = cm::AppState::Instance();
     RefreshDataLinks(state);
-
-    if (cm::features::kOptionsPanel) {
-        state.EnsureOptionsReady();
-        if (cm::features::kDeferredInit &&
-            cm::IsWorldReady(state.mumbleLink, state.nexusLink)) {
-            state.ProcessDeferredInit();
-        }
-        cm::OptionsPanel::RenderNexusConfigEntry(state);
-        return;
+    state.EnsureOptionsReady();
+    if (cm::IsWorldReady(state.mumbleLink, state.nexusLink)) {
+        state.ProcessDeferredInit();
     }
-
-    ImGui::TextUnformatted(cm::kDisplayName);
-    ImGui::Separator();
-    ImGui::TextUnformatted("Minimal debug build - all features disabled.");
-    ImGui::TextUnformatted("See docs/DEBUGGING.md to re-enable incrementally.");
+    cm::OptionsPanel::RenderNexusConfigEntry(state);
 }
 
 }  // namespace

@@ -1,7 +1,7 @@
 #include "services/MarkerListing.h"
 
+#include "EmbeddedDefaults.h"
 #include "data/MarkerSetJson.h"
-#include "data/StaticDataLoader.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -32,6 +32,15 @@ bool ReadFileText(const std::filesystem::path& path, std::string& outContent) {
     return !outContent.empty();
 }
 
+bool ParseListingJson(const std::string& json, MarkerListingFile& out) {
+    try {
+        out = MarkerSetJson::MarkerListingFileFromJson(nlohmann::json::parse(json));
+        return !out.squadMarkerPreset.empty();
+    } catch (...) {
+        return false;
+    }
+}
+
 }  // namespace
 
 MarkerListing::MarkerListing(std::string addonDir) : addonDir_(std::move(addonDir)) {}
@@ -50,72 +59,13 @@ void MarkerListing::NotifyChanged() {
     onMarkersChanged_();
 }
 
-MarkerListingFile MarkerListing::InitDefaultPresets() {
-    MarkerListingFile listing{};
-    listing.version = "2.0.0";
-
-    MarkerSet sabetha{};
-    sabetha.name = "Sabetha";
-    sabetha.description = "Cannon bomb launch platforms";
-    sabetha.mapId = 1062;
-    sabetha.trigger = {-78.40887f, 133.5607f, 70.977f};
-    sabetha.markers = {
-        {-132.6262f, 56.29699f, 62.96119f, 1, "South"},
-        {-157.7033f, 87.01214f, 62.27411f, 2, "West"},
-        {-126.95f, 111.8531f, 62.94498f, 3, "North"},
-        {-101.9202f, 81.18908f, 63.03901f, 4, "East"},
-    };
-    listing.squadMarkerPreset.push_back(std::move(sabetha));
-
-    MarkerSet gorseval{};
-    gorseval.name = "Gorseval";
-    gorseval.description = "Spirit Spawns";
-    gorseval.mapId = 1062;
-    gorseval.trigger = {-2.034508f, -107.3541f, 50.7478f};
-    gorseval.markers = {
-        {21.407f, -92.894f, 48.572f, 1, ""},
-        {64.096f, -93.094f, 48.908f, 2, ""},
-        {62.752f, -131.938f, 48.868f, 3, ""},
-        {22.018f, -134.791f, 48.618f, 4, ""},
-    };
-    listing.squadMarkerPreset.push_back(std::move(gorseval));
-
-    MarkerSet slothasor{};
-    slothasor.name = "Slothasor";
-    slothasor.description = "Mushroom Locations";
-    slothasor.mapId = 1149;
-    slothasor.trigger = {211.8357f, 36.68708f, 8.145153f};
-    slothasor.markers = {
-        {208.928f, 25.562f, 4.933f, 1, "1"},
-        {174.839f, -9.068f, 2.414f, 2, "2"},
-        {192.947f, -35.956f, 0.846f, 3, "3"},
-        {224.945f, -13.404f, -0.177f, 4, "4"},
-    };
-    listing.squadMarkerPreset.push_back(std::move(slothasor));
-
-    return listing;
-}
-
-bool MarkerListing::TryLoadDefaultFile(MarkerListingFile& out) const {
-    std::string json;
-    if (StaticDataLoader::LoadCached(addonDir_, kDefaultFilename, json)) {
-        try {
-            out = MarkerSetJson::MarkerListingFileFromJson(nlohmann::json::parse(json));
-            return !out.squadMarkerPreset.empty();
-        } catch (...) {
-        }
+bool MarkerListing::LoadBuiltinDefaults(MarkerListingFile& out) {
+    const char* json = EmbeddedDefaults::DefaultMarkersJson();
+    const std::size_t size = EmbeddedDefaults::DefaultMarkersJsonSize();
+    if (!json || size == 0) {
+        return false;
     }
-
-    const auto addonDefault = std::filesystem::path(addonDir_) / kDefaultFilename;
-    if (ReadFileText(addonDefault, json)) {
-        try {
-            out = MarkerSetJson::MarkerListingFileFromJson(nlohmann::json::parse(json));
-            return !out.squadMarkerPreset.empty();
-        } catch (...) {
-        }
-    }
-
-    return false;
+    return ParseListingJson(std::string(json, size), out);
 }
 
 void MarkerListing::ApplyListing(MarkerListingFile listing) {
@@ -128,8 +78,9 @@ void MarkerListing::Load() {
     const auto configPath = std::filesystem::path(addonDir_) / kFilename;
     if (!std::filesystem::exists(configPath)) {
         MarkerListingFile listing{};
-        if (!TryLoadDefaultFile(listing)) {
-            listing = InitDefaultPresets();
+        if (!LoadBuiltinDefaults(listing)) {
+            suppressNotify_ = false;
+            return;
         }
         ApplyListing(std::move(listing));
         Save();
@@ -139,8 +90,11 @@ void MarkerListing::Load() {
 
     std::string fileText;
     if (!ReadFileText(configPath, fileText)) {
-        ApplyListing(InitDefaultPresets());
-        Save();
+        MarkerListingFile listing{};
+        if (LoadBuiltinDefaults(listing)) {
+            ApplyListing(std::move(listing));
+            Save();
+        }
         suppressNotify_ = false;
         return;
     }
@@ -155,8 +109,11 @@ void MarkerListing::Load() {
         }
         ApplyListing(std::move(listing));
     } catch (...) {
-        ApplyListing(InitDefaultPresets());
-        Save();
+        MarkerListingFile listing{};
+        if (LoadBuiltinDefaults(listing)) {
+            ApplyListing(std::move(listing));
+            Save();
+        }
     }
     suppressNotify_ = false;
 }
@@ -251,8 +208,8 @@ void MarkerListing::DeleteMarker(const MarkerSet& markerSet) {
 
 void MarkerListing::ResetToDefault() {
     MarkerListingFile listing{};
-    if (!TryLoadDefaultFile(listing)) {
-        listing = InitDefaultPresets();
+    if (!LoadBuiltinDefaults(listing)) {
+        return;
     }
     ApplyListing(std::move(listing));
     version_ = "2.0.0";

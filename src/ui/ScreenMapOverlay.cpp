@@ -1,7 +1,6 @@
 #include "ui/ScreenMapOverlay.h"
 
 #include "core/AppState.h"
-#include "core/FeatureFlags.h"
 #include "core/MumbleUtils.h"
 #include "data/MapDataCache.h"
 #include "services/MapWatchService.h"
@@ -22,21 +21,18 @@ namespace {
 constexpr float kFloorFilterMeters = 30.0f;
 constexpr float kTriggerMarkerIconSize = 32.0f;
 constexpr float kPreviewMarkerIconSize = 32.0f;
-constexpr float kProjectionDebugSquareSize = 24.0f;
 
 constexpr ImGuiWindowFlags kMapOverlayFlags =
     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
     ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings |
     ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav |
-    ImGuiWindowFlags_NoBringToFrontOnFocus;
-
-constexpr ImU32 kDebugOverlayFill = IM_COL32(255, 0, 255, 96);
+    ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoBackground;
 
 struct MapOverlayWindow {
     int styleVars = 0;
     int styleColors = 0;
 
-    bool Begin(const ScreenRect& bounds, bool debugBounds) {
+    bool Begin(const ScreenRect& bounds) {
         if (bounds.w <= 0 || bounds.h <= 0) {
             return false;
         }
@@ -47,23 +43,12 @@ struct MapOverlayWindow {
             ImVec2(static_cast<float>(bounds.w), static_cast<float>(bounds.h)), ImGuiCond_Always);
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, debugBounds ? 2.0f : 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         styleVars = 2;
-        if (debugBounds) {
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, kDebugOverlayFill);
-            ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(255, 0, 255, 220));
-            styleColors = 2;
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
-            styleColors = 1;
-        }
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
+        styleColors = 1;
 
-        ImGuiWindowFlags flags = kMapOverlayFlags;
-        if (!debugBounds) {
-            flags |= ImGuiWindowFlags_NoBackground;
-        }
-
-        if (!ImGui::Begin("##cm_screen_map_overlay", nullptr, flags)) {
+        if (!ImGui::Begin("##cm_screen_map_overlay", nullptr, kMapOverlayFlags)) {
             End();
             return false;
         }
@@ -85,9 +70,7 @@ struct MapOverlayWindow {
 };
 
 bool ShouldRender(const AppState& state) {
-    const bool debugMode =
-        cm::features::kDebugMapOverlayBounds || cm::features::kDebugMapProjection;
-    if (!state.settings.autoMarkerEnabled && !debugMode) {
+    if (!state.settings.autoMarkerEnabled) {
         return false;
     }
     if (!IsInGame(state.mumbleLink, state.nexusLink)) {
@@ -96,13 +79,12 @@ bool ShouldRender(const AppState& state) {
     if (IsInCombat(state.mumbleLink) && !state.settings.combatPlacement) {
         return false;
     }
-    if (!debugMode && (state.settings.autoMarkerOnlyCommander || state.ltMode)) {
+    if (state.settings.autoMarkerOnlyCommander || state.ltMode) {
         if (!HasCommanderPermissions(state.mumbleLink, state.playerIdentity) && !state.ltMode) {
             return false;
         }
     }
-    if (!debugMode && !state.settings.autoMarkerShowTrigger &&
-        !state.settings.autoMarkerShowPreview) {
+    if (!state.settings.autoMarkerShowTrigger && !state.settings.autoMarkerShowPreview) {
         return false;
     }
     return true;
@@ -122,42 +104,18 @@ std::vector<MarkerSet> EnabledMarkersOnMap(const AppState& state, int mapId) {
     return markers;
 }
 
-void DrawColoredDebugSquare(ImDrawList* draw, const Vec2f& screenPos, ImU32 fill, float size) {
-    if (!draw) {
-        return;
-    }
-
-    const float half = size * 0.5f;
-    const ImVec2 p0(screenPos.x - half, screenPos.y - half);
-    const ImVec2 p1(screenPos.x + half, screenPos.y + half);
-    draw->AddRectFilled(p0, p1, fill);
-    draw->AddRect(p0, p1, IM_COL32(255, 255, 255, 255), 0.0f, 0, 2.0f);
-}
-
 void DrawMarkerAt(ImDrawList* draw,
                   const Vec2f& screenPos,
                   ImTextureID texture,
                   float iconSize,
-                  float alpha,
-                  bool debugSquare) {
-    if (!draw) {
+                  float alpha) {
+    if (!draw || !texture) {
         return;
     }
 
     const float half = iconSize * 0.5f;
     const ImVec2 p0(screenPos.x - half, screenPos.y - half);
     const ImVec2 p1(screenPos.x + half, screenPos.y + half);
-
-    if (debugSquare) {
-        draw->AddRectFilled(p0, p1, IM_COL32(0, 0, 0, 255));
-        draw->AddRect(p0, p1, IM_COL32(255, 255, 255, 255), 0.0f, 0, 1.0f);
-        return;
-    }
-
-    if (!texture) {
-        return;
-    }
-
     const ImU32 tint = IM_COL32(255, 255, 255, static_cast<int>(255.0f * alpha));
     draw->AddImage(texture, p0, p1, ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), tint);
 }
@@ -170,8 +128,7 @@ void DrawTriggerHearts(const AppState& state,
                        ImDrawList* draw,
                        const ScreenMapData& screenMap,
                        const Vec3f& player,
-                       const std::vector<MarkerSet>& markers,
-                       bool debugSquare) {
+                       const std::vector<MarkerSet>& markers) {
     if (!state.settings.autoMarkerShowTrigger) {
         return;
     }
@@ -179,24 +136,23 @@ void DrawTriggerHearts(const AppState& state,
     const ImTextureID triggerIcon = TriggerMarkerTexture();
     for (const MarkerSet& markerSet : markers) {
         const Vec3f trigger{markerSet.trigger.x, markerSet.trigger.y, markerSet.trigger.z};
-        if (!debugSquare && !SameFloor(player, trigger)) {
+        if (!SameFloor(player, trigger)) {
             continue;
         }
 
         const Vec2f screenPos =
             MapDataCache::WorldToScreenMap(markerSet.mapId, trigger, screenMap, state.mapData);
-        if (!debugSquare && !screenMap.screenBounds.Contains(screenPos.x, screenPos.y)) {
+        if (!screenMap.screenBounds.Contains(screenPos.x, screenPos.y)) {
             continue;
         }
-        DrawMarkerAt(draw, screenPos, triggerIcon, kTriggerMarkerIconSize, 1.0f, debugSquare);
+        DrawMarkerAt(draw, screenPos, triggerIcon, kTriggerMarkerIconSize, 1.0f);
     }
 }
 
 void DrawPreviewMarkers(const AppState& state,
                         ImDrawList* draw,
                         const ScreenMapData& screenMap,
-                        const Vec3f& player,
-                        bool debugSquare) {
+                        const Vec3f& player) {
     if (!state.settings.autoMarkerShowPreview) {
         return;
     }
@@ -212,7 +168,7 @@ void DrawPreviewMarkers(const AppState& state,
 
     for (const MarkerCoord& marker : preview->markers) {
         const Vec3f world{marker.x, marker.y, marker.z};
-        if (!debugSquare && !SameFloor(player, world)) {
+        if (!SameFloor(player, world)) {
             continue;
         }
 
@@ -222,10 +178,10 @@ void DrawPreviewMarkers(const AppState& state,
         const ImTextureID texture = TextureService::GetTexture(squadMarker);
         const Vec2f screenPos =
             MapDataCache::WorldToScreenMap(preview->mapId, world, screenMap, state.mapData);
-        if (!debugSquare && !screenMap.screenBounds.Contains(screenPos.x, screenPos.y)) {
+        if (!screenMap.screenBounds.Contains(screenPos.x, screenPos.y)) {
             continue;
         }
-        DrawMarkerAt(draw, screenPos, texture, kPreviewMarkerIconSize, 0.85f, debugSquare);
+        DrawMarkerAt(draw, screenPos, texture, kPreviewMarkerIconSize, 0.85f);
     }
 }
 
@@ -251,11 +207,7 @@ void DrawInteractPrompt(AppState& state,
         }
     }
 
-    if (!closest) {
-        return;
-    }
-
-    if (!state.nexusLink || !draw) {
+    if (!closest || !state.nexusLink || !draw) {
         return;
     }
 
@@ -275,99 +227,6 @@ void DrawInteractPrompt(AppState& state,
                                     prompt);
 }
 
-void DrawDebugOverlayFill(ImDrawList* draw, const ScreenRect& bounds) {
-    if (!draw) {
-        return;
-    }
-
-    const ImVec2 p0(static_cast<float>(bounds.x), static_cast<float>(bounds.y));
-    const ImVec2 p1(static_cast<float>(bounds.x + bounds.w),
-                      static_cast<float>(bounds.y + bounds.h));
-    draw->AddRectFilled(p0, p1, kDebugOverlayFill);
-    draw->AddRect(p0, p1, IM_COL32(255, 0, 255, 220), 0.0f, 0, 2.0f);
-}
-
-void DrawDebugOverlayLabel(ImDrawList* draw, const ScreenRect& bounds, int mapId,
-                           std::size_t markerCount, bool hasGeometry) {
-    if (!draw) {
-        return;
-    }
-
-    char label[160];
-    std::snprintf(label, sizeof(label), "CM overlay map=%d markers=%zu geom=%s bounds=%d,%d %dx%d",
-                  mapId, markerCount, hasGeometry ? "yes" : "no", bounds.x, bounds.y, bounds.w,
-                  bounds.h);
-    draw->AddText(ImVec2(static_cast<float>(bounds.x) + 4.0f, static_cast<float>(bounds.y) + 4.0f),
-                  IM_COL32(255, 255, 255, 255), label);
-}
-
-void DrawProjectionDebug(const AppState& state,
-                         ImDrawList* draw,
-                         const ScreenMapData& screenMap,
-                         int mapId,
-                         const Vec3f& player,
-                         bool hasGeometry) {
-    if (!draw || !state.mumbleLink) {
-        return;
-    }
-
-    const Mumble::Compass& compass = state.mumbleLink->Context.Compass;
-    const Vec2f mumbleContinent{compass.PlayerPosition.X, compass.PlayerPosition.Y};
-    const Vec2f cyanScreen = MapDataCache::MapToScreenMap(mumbleContinent, screenMap);
-    DrawColoredDebugSquare(draw, cyanScreen, IM_COL32(0, 220, 255, 255), kProjectionDebugSquareSize);
-
-    Vec2f greenScreen{};
-    Vec2f apiContinent{};
-    bool hasApiContinent = false;
-    if (hasGeometry) {
-        const Gw2Map* map = state.mapData.GetMap(mapId);
-        if (map) {
-            apiContinent = MapDataCache::WorldMetersToMap(*map, player);
-            hasApiContinent = true;
-        }
-        greenScreen = MapDataCache::WorldToScreenMap(mapId, player, screenMap, state.mapData);
-        DrawColoredDebugSquare(draw, greenScreen, IM_COL32(0, 255, 0, 255), kProjectionDebugSquareSize);
-    }
-
-    const ScreenRect& bounds = screenMap.screenBounds;
-    float textY = static_cast<float>(bounds.y + bounds.h) - 72.0f;
-    const float textX = static_cast<float>(bounds.x) + 4.0f;
-    const ImU32 textColor = IM_COL32(255, 255, 255, 255);
-
-    draw->AddText(ImVec2(textX, textY), textColor,
-                  "proj: green=API  cyan=mumble  orange=map content center");
-    textY += 16.0f;
-
-    if (hasApiContinent) {
-        const float continentDx = apiContinent.x - mumbleContinent.x;
-        const float continentDy = apiContinent.y - mumbleContinent.y;
-        const float screenDx = greenScreen.x - cyanScreen.x;
-        const float screenDy = greenScreen.y - cyanScreen.y;
-
-        char deltaLine[192];
-        std::snprintf(deltaLine, sizeof(deltaLine),
-                      "continent dX=%.1f dY=%.1f  screen dX=%.1f dY=%.1f", continentDx,
-                      continentDy, screenDx, screenDy);
-        draw->AddText(ImVec2(textX, textY), textColor, deltaLine);
-        textY += 16.0f;
-
-        char coordLine[256];
-        std::snprintf(coordLine, sizeof(coordLine),
-                      "API(%.0f,%.0f) mumble(%.0f,%.0f) center(%.0f,%.0f) scale=%.4f "
-                      "bCenter(%.0f,%.0f)",
-                      apiContinent.x, apiContinent.y, mumbleContinent.x, mumbleContinent.y,
-                      screenMap.mapCenter.x, screenMap.mapCenter.y, screenMap.scale,
-                      screenMap.boundsCenter.x, screenMap.boundsCenter.y);
-        draw->AddText(ImVec2(textX, textY), textColor, coordLine);
-        textY += 16.0f;
-
-        DrawColoredDebugSquare(draw, screenMap.boundsCenter, IM_COL32(255, 128, 0, 255), 16.0f);
-    } else {
-        draw->AddText(ImVec2(textX, textY), textColor,
-                      "green square hidden: map geometry missing from cache");
-    }
-}
-
 }  // namespace
 
 void Render(AppState& state) {
@@ -375,46 +234,28 @@ void Render(AppState& state) {
         return;
     }
 
-    const bool debugBounds = cm::features::kDebugMapOverlayBounds;
-    const bool debugProjection = cm::features::kDebugMapProjection;
-    const bool debugMode = debugBounds || debugProjection;
     const int mapId = static_cast<int>(state.mumbleLink->Context.MapID);
     const std::vector<MarkerSet> markers = EnabledMarkersOnMap(state, mapId);
-    const bool hasGeometry = state.mapData.MapHasGeometry(mapId);
+    if (markers.empty() || !state.mapData.MapHasGeometry(mapId)) {
+        return;
+    }
 
     const ScreenMapData screenMap = BuildScreenMapData(state.mumbleLink, state.nexusLink);
     if (screenMap.screenBounds.w <= 0 || screenMap.screenBounds.h <= 0) {
         return;
     }
 
-    if (!debugMode) {
-        if (markers.empty() || !hasGeometry) {
-            return;
-        }
-    }
-
     const Vec3f player = PlayerPosition(state.mumbleLink);
 
     MapOverlayWindow overlay;
-    if (!overlay.Begin(screenMap.screenBounds, debugBounds)) {
+    if (!overlay.Begin(screenMap.screenBounds)) {
         return;
     }
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    if (debugBounds) {
-        DrawDebugOverlayFill(draw, screenMap.screenBounds);
-        DrawDebugOverlayLabel(draw, screenMap.screenBounds, mapId, markers.size(), hasGeometry);
-    }
-
-    if (debugProjection) {
-        DrawProjectionDebug(state, draw, screenMap, mapId, player, hasGeometry);
-    }
-
-    if (!markers.empty() && hasGeometry) {
-        DrawTriggerHearts(state, draw, screenMap, player, markers, debugBounds);
-        DrawPreviewMarkers(state, draw, screenMap, player, debugBounds);
-        DrawInteractPrompt(state, draw, player, markers);
-    }
+    DrawTriggerHearts(state, draw, screenMap, player, markers);
+    DrawPreviewMarkers(state, draw, screenMap, player);
+    DrawInteractPrompt(state, draw, player, markers);
     overlay.End();
 }
 

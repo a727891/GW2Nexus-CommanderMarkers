@@ -44,15 +44,21 @@ file(GLOB TEXTURE_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/te
 set(EMBEDDED_ASSETS_DIR "${CMAKE_BINARY_DIR}/generated")
 set(EMBEDDED_TEXTURES_CPP "${EMBEDDED_ASSETS_DIR}/EmbeddedTextures.cpp")
 set(EMBEDDED_TEXTURES_H "${EMBEDDED_ASSETS_DIR}/EmbeddedTextures.h")
+set(EMBEDDED_DEFAULTS_CPP "${EMBEDDED_ASSETS_DIR}/EmbeddedDefaults.cpp")
+set(EMBEDDED_DEFAULTS_H "${EMBEDDED_ASSETS_DIR}/EmbeddedDefaults.h")
+set(DEFAULT_MARKERS_JSON "${CMAKE_CURRENT_SOURCE_DIR}/assets/data/default_markers.json")
 
 add_custom_command(
     OUTPUT ${EMBEDDED_TEXTURES_CPP} ${EMBEDDED_TEXTURES_H}
+           ${EMBEDDED_DEFAULTS_CPP} ${EMBEDDED_DEFAULTS_H}
     COMMAND ${CMAKE_COMMAND} -E make_directory "${EMBEDDED_ASSETS_DIR}"
     COMMAND python3 "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_assets.py"
             --textures-dir "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures"
+            --defaults-json "${DEFAULT_MARKERS_JSON}"
             --output-dir "${EMBEDDED_ASSETS_DIR}"
-    DEPENDS ${TEXTURE_FILES} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_assets.py"
-    COMMENT "Embedding Commander Markers PNG assets"
+    DEPENDS ${TEXTURE_FILES} "${DEFAULT_MARKERS_JSON}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_assets.py"
+    COMMENT "Embedding Commander Markers assets"
     VERBATIM
 )
 
@@ -97,9 +103,11 @@ set(SRC_FILES
     src/ui/QuickAccessService.cpp
     src/ui/UiFontService.cpp
     ${EMBEDDED_TEXTURES_CPP}
+    ${EMBEDDED_DEFAULTS_CPP}
 )
 
-add_custom_target(generate_embedded_assets DEPENDS ${EMBEDDED_TEXTURES_CPP} ${EMBEDDED_TEXTURES_H})
+add_custom_target(generate_embedded_assets DEPENDS ${EMBEDDED_TEXTURES_CPP} ${EMBEDDED_TEXTURES_H}
+                                              ${EMBEDDED_DEFAULTS_CPP} ${EMBEDDED_DEFAULTS_H})
 
 add_library(NexusCommanderMarkers SHARED ${SRC_FILES})
 add_dependencies(NexusCommanderMarkers generate_embedded_assets)

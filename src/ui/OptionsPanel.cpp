@@ -236,9 +236,6 @@ void RenderNexusConfigEntry(AppState& state) {
     ImGui::Spacing();
     ImGui::TextWrapped("%s", kDescription);
     ImGui::Spacing();
-    ImGui::TextWrapped(
-        "Configure clickable markers, AutoMarker, marker libraries, and quick access from a "
-        "dedicated in-game settings window.");
     ImGui::Spacing();
     ImGui::Spacing();
 

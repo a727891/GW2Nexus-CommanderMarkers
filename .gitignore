@@ -4,4 +4,3 @@ dist/
 *.exe
 .cache/
 .cursor/
-docs/

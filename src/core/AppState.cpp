@@ -1,7 +1,6 @@
 #include "core/AppState.h"
 
 #include "core/Branding.h"
-#include "core/FeatureFlags.h"
 #include "core/MumbleUtils.h"
 #include "services/Gw2MapApiClient.h"
 #include "ui/DatAssetIconService.h"
@@ -157,31 +156,26 @@ void AppState::ProcessDeferredInit() {
             communityMarkers.LoadCached();
             mapWatch.Initialize(&mapData, &markerListing, &placementService, &settings,
                                 &playerIdentity);
-            if (cm::features::kDeferredInit) {
-                TextureService::Initialize(api, addonDir);
-            }
-            if (cm::features::kDatAssetIcons) {
-                DatAssetIconService::Initialize(api, addonDir);
-            }
+            TextureService::Initialize(api, addonDir);
+            DatAssetIconService::Initialize(api, addonDir);
             UiFontService::Initialize(api, nexusLink);
             initStep = 4;
             break;
 
-        case 4:
+        case 4: {
             CheckRequiredBinds();
-            if (cm::features::kBackgroundSync) {
-                const int buildId =
-                    mumbleLink ? static_cast<int>(mumbleLink->Context.BuildID) : 0;
-                if (Gw2MapApiClient::NeedsRefresh(mapData, buildId)) {
-                    RequestMapRefresh();
-                }
-                RequestCommunitySync();
+            const int buildId =
+                mumbleLink ? static_cast<int>(mumbleLink->Context.BuildID) : 0;
+            if (Gw2MapApiClient::NeedsRefresh(mapData, buildId)) {
+                RequestMapRefresh();
             }
+            RequestCommunitySync();
             loadInitialized = true;
             renderInitialized = false;
             initStep = 5;
             api->Log(LOGL_INFO, kLogChannel, "Initialized.");
             break;
+        }
 
         default:
             break;
@@ -262,7 +256,7 @@ void AppState::ProcessPendingMapRefresh() {
 }
 
 void AppState::ProcessRenderInit() {
-    if (renderInitialized || !api || !loadInitialized || !cm::features::kQuickAccess) {
+    if (renderInitialized || !api || !loadInitialized) {
         return;
     }
 

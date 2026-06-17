@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate C++ sources that embed Commander Markers PNG assets into the DLL."""
+"""Generate C++ sources that embed Commander Markers assets into the DLL."""
 
 from __future__ import annotations
 
@@ -104,9 +104,59 @@ std::size_t Count() { return sizeof(kAssets) / sizeof(kAssets[0]); }
     out_cpp.write_text(cpp, encoding="utf-8")
 
 
+def write_default_markers(defaults_path: Path, out_cpp: Path, out_h: Path) -> None:
+    if not defaults_path.is_file():
+        raise SystemExit(f"missing default marker library: {defaults_path}")
+
+    data = defaults_path.read_bytes()
+    out_h.write_text(
+        """#pragma once
+
+#include <cstddef>
+
+namespace cm {
+namespace EmbeddedDefaults {
+
+const char* DefaultMarkersJson();
+std::size_t DefaultMarkersJsonSize();
+
+}  // namespace EmbeddedDefaults
+}  // namespace cm
+""",
+        encoding="utf-8",
+    )
+
+    out_cpp.write_text(
+        """#include "EmbeddedDefaults.h"
+
+namespace cm {
+namespace EmbeddedDefaults {
+
+alignas(4) const unsigned char kDefaultMarkersJson[] = {
+"""
+        + format_bytes(data)
+        + f"""
+}};
+
+const char* DefaultMarkersJson() {{
+    return reinterpret_cast<const char*>(kDefaultMarkersJson);
+}}
+
+std::size_t DefaultMarkersJsonSize() {{
+    return {len(data)};
+}}
+
+}}  // namespace EmbeddedDefaults
+}}  // namespace cm
+""",
+        encoding="utf-8",
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--textures-dir", type=Path, required=True)
+    parser.add_argument("--defaults-json", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -114,6 +164,11 @@ def main() -> int:
         args.textures_dir,
         args.output_dir / "EmbeddedTextures.cpp",
         args.output_dir / "EmbeddedTextures.h",
+    )
+    write_default_markers(
+        args.defaults_json,
+        args.output_dir / "EmbeddedDefaults.cpp",
+        args.output_dir / "EmbeddedDefaults.h",
     )
     return 0
 
