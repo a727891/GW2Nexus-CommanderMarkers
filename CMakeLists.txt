@@ -133,7 +133,10 @@ if(CMAKE_CXX_COMPILER MATCHES "mingw" OR MINGW)
 endif()
 
 set_target_properties(NexusCommanderMarkers PROPERTIES
-    OUTPUT_NAME "NexusCommanderMarkers"
+    OUTPUT_NAME "CommanderMarkers"
     PREFIX ""
     SUFFIX ".dll"
 )
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateAddonMetadata.cmake)
+configure_addon_metadata(NexusCommanderMarkers "COMM-MARKERS-Nexus")

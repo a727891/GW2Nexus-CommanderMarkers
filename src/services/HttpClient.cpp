@@ -1,6 +1,6 @@
 #include "services/HttpClient.h"
 
-#include "core/Branding.h"
+#include "Version.h"
 
 #include <windows.h>
 #include <winhttp.h>
@@ -53,7 +53,7 @@ HttpResponse HttpGetUrlEx(const std::string& url, const HttpRequestOptions& opti
 
     const bool moduleUserAgent = UsesModuleUserAgent(host);
     const std::wstring sessionAgent =
-        moduleUserAgent ? ToWide(kHttpUserAgent) : L"CommanderMarkers-GW2API/1.0.0";
+        moduleUserAgent ? ToWide(V_HTTP_USER_AGENT) : L"CommanderMarkers-GW2API/1.0.0";
 
     HINTERNET session = WinHttpOpen(sessionAgent.c_str(),
                                     WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
@@ -86,7 +86,7 @@ HttpResponse HttpGetUrlEx(const std::string& url, const HttpRequestOptions& opti
 
     std::wstring headers;
     if (moduleUserAgent) {
-        headers = L"User-Agent: " + ToWide(kHttpUserAgent) + L"\r\n";
+        headers = L"User-Agent: " + ToWide(V_HTTP_USER_AGENT) + L"\r\n";
     }
     if (!options.bearerToken.empty()) {
         headers += L"Authorization: Bearer " + ToWide(options.bearerToken) + L"\r\n";

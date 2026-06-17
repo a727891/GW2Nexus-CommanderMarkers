@@ -8,6 +8,7 @@
 #include "ui/LibraryEditorUi.h"
 #include "ui/MarkersPanel.h"
 #include "ui/OptionsUiKit.h"
+#include "Version.h"
 
 #include <imgui.h>
 #include <shellapi.h>
@@ -51,7 +52,7 @@ void RenderAboutTab() {
         kDisplayName);
 
     ImGui::Spacing();
-    ImGui::Text("Version: %s", kVersionString);
+    ImGui::Text("Version: %s", V_VERSION_STRING);
     ImGui::Text("Author: %s", kAuthor);
 
     ImGui::Spacing();

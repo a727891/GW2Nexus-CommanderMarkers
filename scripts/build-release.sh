@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$ROOT/build"
 EXPORT_DIR="$ROOT/dist"
-DLL_NAME="NexusCommanderMarkers.dll"
+DLL_NAME="CommanderMarkers.dll"
 TOOLCHAIN_FILE="$ROOT/cmake/mingw-w64-toolchain.cmake"
 
 require_command() {
@@ -28,6 +28,17 @@ resolve_strip_bin() {
 require_command cmake
 STRIP_BIN="$(resolve_strip_bin)"
 
+GENERATE_METADATA() {
+  local build_dir="$1"
+  local ua_prefix="$2"
+  mkdir -p "$build_dir/generated"
+  python3 "$ROOT/scripts/generate_addon_metadata.py" \
+    --user-agent-prefix "$ua_prefix" \
+    --output-dir "$build_dir/generated"
+}
+
+require_command python3
+
 if [[ ! -f "$TOOLCHAIN_FILE" ]]; then
   echo "error: missing toolchain file: $TOOLCHAIN_FILE" >&2
   exit 1
@@ -40,6 +51,8 @@ if [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
     -DCMAKE_BUILD_TYPE=Release \
     "$ROOT"
 fi
+
+GENERATE_METADATA "$BUILD_DIR" "COMM-MARKERS-Nexus"
 
 echo "Building $DLL_NAME..."
 cmake --build "$BUILD_DIR"

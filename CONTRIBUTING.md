@@ -25,7 +25,7 @@ cmake -B build -G Ninja \
 cmake --build build
 ```
 
-Output: `build/NexusCommanderMarkers.dll`
+Output: `build/CommanderMarkers.dll`
 
 Release export (stripped, embedded textures):
 
@@ -35,9 +35,10 @@ Release export (stripped, embedded textures):
 
 ### Deploy locally
 
+Copy `CommanderMarkers.dll` to `<GW2>/addons/`, or run:
+
 ```bash
 ./scripts/deploy-to-gw2.sh --release
-./scripts/deploy-to-gw2.sh --release --ftue   # clear cache to test first-load community sync
 ```
 
 See [README.md](README.md) for details.
@@ -64,7 +65,7 @@ Key UI entry points: `SettingsWindow.cpp` (owned options window), `MarkerSetEdit
 
 ## Maintaining community marker data
 
-Most community updates **do not require a Nexus code change**. Marker sets are loaded from static JSON at runtime and cached under `<GW2>/addons/NexusCommanderMarkers/commanderMarkers/`.
+Most community updates **do not require a Nexus code change**. Marker sets are loaded from static JSON at runtime and cached under `<GW2>/addons/CommanderMarkers/commanderMarkers/`.
 
 ### Repositories involved
 

@@ -78,7 +78,7 @@ void AppState::EnsureOptionsReady() {
         return;
     }
 
-    addonDir = api->Paths_GetAddonDirectory("NexusCommanderMarkers");
+    addonDir = api->Paths_GetAddonDirectory("CommanderMarkers");
     settings.Load(settingsPath());
     optionsReady = true;
 }

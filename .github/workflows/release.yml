@@ -1,0 +1,121 @@
+# Nexus addon release build (MinGW cross-compile on Ubuntu).
+#
+# Config:   .github/nexus-release.json
+
+name: Release build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build python3 \
+            g++-mingw-w64-x86-64 mingw-w64-tools
+
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+          key: ${{ runner.os }}-mingw-deps-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+          restore-keys: |
+            ${{ runner.os }}-mingw-deps-
+
+      - name: Release build
+        run: ./scripts/build-release.sh
+
+      - name: Resolve version and DLL path
+        id: meta
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^#define V_VERSION_STRING "\(.*\)"/\1/p' build/generated/Version.h | head -n1)"
+          if [[ -z "$VERSION" ]]; then
+            echo "error: could not read V_VERSION_STRING from build/generated/Version.h" >&2
+            exit 1
+          fi
+          mapfile -t DLLS < <(find dist -maxdepth 1 -name '*.dll' -type f | sort)
+          if [[ ${#DLLS[@]} -ne 1 ]]; then
+            echo "error: expected exactly one DLL in dist/, found: ${DLLS[*]:-<none>}" >&2
+            exit 1
+          fi
+          DLL_PATH="${DLLS[0]}"
+          DLL_NAME="$(basename "$DLL_PATH")"
+          TAG="v${VERSION}"
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q .; then
+            TAG="v${VERSION}.${GITHUB_RUN_NUMBER}"
+          fi
+          RELEASE_TITLE="$(python3 -c "import json; print(json.load(open('.github/nexus-release.json')).get('release_title', 'Nexus addon'))")"
+          TITLE="${RELEASE_TITLE} ${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "dll_path=${DLL_PATH}" >> "$GITHUB_OUTPUT"
+          echo "dll_name=${DLL_NAME}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
+          echo "Version: ${VERSION}"
+          echo "DLL: ${DLL_PATH}"
+          echo "Tag: ${TAG}"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.dll_name }}-${{ steps.meta.outputs.version }}
+          path: ${{ steps.meta.outputs.dll_path }}
+          if-no-files-found: error
+
+      - name: Read publish settings
+        id: cfg
+        run: |
+          PUBLISH=$(python3 -c "import json; c=json.load(open('.github/nexus-release.json')); print('true' if c.get('publish_release', True) else 'false')")
+          DRAFT=$(python3 -c "import json; c=json.load(open('.github/nexus-release.json')); print('true' if c.get('draft', False) else 'false')")
+          PRERELEASE=$(python3 -c "import json; c=json.load(open('.github/nexus-release.json')); print('true' if c.get('prerelease', False) else 'false')")
+          echo "publish=${PUBLISH}" >> "$GITHUB_OUTPUT"
+          echo "draft=${DRAFT}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub release
+        if: steps.cfg.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          NOTES_FILE="$(mktemp)"
+          cat >"$NOTES_FILE" <<EOF
+          Automated release build from [\`${SHORT_SHA}\`](${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA}) on \`main\`.
+
+          ### Installation
+
+          Download \`${{ steps.meta.outputs.dll_name }}\` and copy it to \`<GW2>/addons/\`.
+          EOF
+          ARGS=(
+            release create "${{ steps.meta.outputs.tag }}"
+            "${{ steps.meta.outputs.dll_path }}"
+            --title "${{ steps.meta.outputs.title }}"
+            --notes-file "$NOTES_FILE"
+          )
+          if [[ "${{ steps.cfg.outputs.draft }}" == "true" ]]; then
+            ARGS+=(--draft)
+          fi
+          if [[ "${{ steps.cfg.outputs.prerelease }}" == "true" ]]; then
+            ARGS+=(--prerelease)
+          fi
+          gh "${ARGS[@]}"
+          echo "Published $(gh release view "${{ steps.meta.outputs.tag }}" --json url -q .url)"

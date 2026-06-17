@@ -1,6 +1,7 @@
 #include "core/AppState.h"
 #include "core/Branding.h"
 #include "core/FeatureFlags.h"
+#include "Version.h"
 #include "core/MumbleUtils.h"
 #include "ui/BillboardRenderer.h"
 #include "ui/DatAssetIconService.h"
@@ -246,10 +247,10 @@ extern "C" __declspec(dllexport) AddonDefinition_t* GetAddonDef() {
     static AddonDefinition_t def{};
     static bool initialized = false;
     if (!initialized) {
-        def.Signature = -2024061401;
+        def.Signature = cm::kSignature;
         def.APIVersion = NEXUS_API_VERSION;
         def.Name = cm::kDisplayName;
-        def.Version = {1, 0, 0, 0};
+        def.Version = {V_MAJOR, V_MINOR, V_BUILD, V_REVISION};
         def.Author = cm::kAuthor;
         def.Description = cm::kDescription;
         def.Load = AddonLoad;

@@ -26,16 +26,11 @@ Squad marker placement uses **Guild Wars 2 in-game keybinds** (via Nexus `GameBi
 
 ## Installation
 
-1. Copy `NexusCommanderMarkers.dll` to `<GW2>/addons/` (directly in `addons/`, not a subfolder)
+1. Copy `CommanderMarkers.dll` to `<GW2>/addons/` (directly in `addons/`, not a subfolder)
 2. Launch GW2 with Nexus enabled
 3. Enable **Commander Markers** in Nexus addon settings
 4. Click **Open Commander Markers Settings** on the addon page (or use the corner icon) to configure options and libraries
 5. Assign squad marker keybinds in GW2 if you have not already
-
-Textures and the corner icon are **embedded in the DLL** at build time. End users only need the single DLL file.
-
-On first run the addon downloads the community marker library into
-`<GW2>/addons/NexusCommanderMarkers/commanderMarkers/`. A local marker library is seeded from built-in defaults when no saved library exists.
 
 ## Build & deploy
 
@@ -54,7 +49,7 @@ cmake -B build -G Ninja \
 cmake --build build
 ```
 
-Output: `build/NexusCommanderMarkers.dll`
+Output: `build/CommanderMarkers.dll`
 
 Stripped release export (~5 MB):
 
@@ -62,21 +57,23 @@ Stripped release export (~5 MB):
 ./scripts/build-release.sh
 ```
 
-Output: `dist/NexusCommanderMarkers.dll`
+Output: `dist/CommanderMarkers.dll`
 
 ### Deploy to local GW2
 
 ```bash
-./scripts/deploy-to-gw2.sh --release           # stripped DLL + default marker seed
-./scripts/deploy-to-gw2.sh --release --ftue      # stripped DLL, clear cache (test first-load sync)
+./scripts/deploy-to-gw2.sh
+./scripts/deploy-to-gw2.sh --release    # stripped dist/ export from build-release.sh
 ```
+
+Set `GW2_ADDONS_DIR` to override the default addons path.
 
 ### Nexus does not list the DLL
 
 Rebuild with the provided `CMakeLists.txt` (static MinGW runtime). The DLL should only import Windows system libraries:
 
 ```bash
-x86_64-w64-mingw32-objdump -p dist/NexusCommanderMarkers.dll | rg "DLL Name"
+x86_64-w64-mingw32-objdump -p dist/CommanderMarkers.dll | rg "DLL Name"
 ```
 
 Expect `KERNEL32.dll`, `USER32.dll`, `WINHTTP.dll`, `msvcrt.dll` - **not**
@@ -84,7 +81,7 @@ Expect `KERNEL32.dll`, `USER32.dll`, `WINHTTP.dll`, `msvcrt.dll` - **not**
 
 Also confirm:
 
-- Filename is `NexusCommanderMarkers.dll` (not `libNexusCommanderMarkers.dll`)
+- Filename is `CommanderMarkers.dll`
 - File is x64 and sits directly in `addons/`
 
 ## Manual test checklist
