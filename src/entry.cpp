@@ -234,7 +234,7 @@ void AddonOptions() {
 
     ImGui::TextUnformatted(cm::kDisplayName);
     ImGui::Separator();
-    ImGui::TextUnformatted("Minimal debug build — all features disabled.");
+    ImGui::TextUnformatted("Minimal debug build - all features disabled.");
     ImGui::TextUnformatted("See docs/DEBUGGING.md to re-enable incrementally.");
 }
 

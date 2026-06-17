@@ -110,6 +110,6 @@ When behavior differs from Blish, treat the C# module as the source of truth and
 
 Keybind policy for Nexus:
 
-- **Do not** add squad marker keybind UI — GW2 Controls owns those binds.
+- **Do not** add squad marker keybind UI - GW2 Controls owns those binds.
 - Use `GameBinds_IsBound` / `CheckRequiredBinds()` and show a warning when binds are missing.
 - AutoMarker interact uses Nexus bind `CM_INTERACT` (registered in `entry.cpp`).

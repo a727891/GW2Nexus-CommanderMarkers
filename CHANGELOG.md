@@ -34,5 +34,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Notes
 
 - Squad marker keybinds are configured in GW2 Controls, not in addon options
-- No Blish Keybinds options tab — Nexus uses `GameBinds_IsBound` with a warning banner when binds are missing
+- No Blish Keybinds options tab - Nexus uses `GameBinds_IsBound` with a warning banner when binds are missing
 - Commander permission checks prefer RTAPI squad roles when Real-Time API is active; otherwise mumble commander tag / identity JSON

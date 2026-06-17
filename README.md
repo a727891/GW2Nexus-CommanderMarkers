@@ -6,17 +6,17 @@ Place squad markers with a click, or auto-place saved marker sets near triggers.
 
 ## Features
 
-- **Clickable markers panel** — ground markers (select icon, click world/minimap) and object markers (instant placement)
-- **AutoMarker** — saved marker sets with map triggers, interact placement, and in-game world markers when the map is closed
-- **Dedicated settings window** — full UI in an owned ImGui window (opened from Nexus addon config or the corner icon); Nexus config page shows a launcher only
-- **Marker set editor** — separate editor window for local library sets: per-slot placement, Base64 import/export, optional RTAPI squad-marker import, unsaved-close and delete confirmations (hold **Shift** to skip)
-- **Community library** — browse, search, and import marker sets from shared JSON; **Only Show available** hides sets already in your library; import shows a Nexus alert on success
-- **Local library** — search filter, enable/disable sets, create/edit/delete, Base64 import/export, nuclear reset (Ctrl+Shift)
-- **Real-Time API (optional)** — when [Real-Time API](https://raidcore.gg/gw2/nexus) is installed and active, squad commander/lieutenant roles augment mumble commander checks; editor can import live squad marker positions
-- **Corner icon** — quick access to settings, library, and lieutenant mode toggle
-- **Quick access keybind** — `CM_INTERACT` (default `F`) for AutoMarker interact placement
+- **Clickable markers panel** - ground markers (select icon, click world/minimap) and object markers (instant placement)
+- **AutoMarker** - saved marker sets with map triggers, interact placement, and in-game world markers when the map is closed
+- **Dedicated settings window** - full UI in an owned ImGui window (opened from Nexus addon config or the corner icon); Nexus config page shows a launcher only
+- **Marker set editor** - separate editor window for local library sets: per-slot placement, Base64 import/export, optional RTAPI squad-marker import, unsaved-close and delete confirmations (hold **Shift** to skip)
+- **Community library** - browse, search, and import marker sets from shared JSON; **Only Show available** hides sets already in your library; import shows a Nexus alert on success
+- **Local library** - search filter, enable/disable sets, create/edit/delete, Base64 import/export, nuclear reset (Ctrl+Shift)
+- **Real-Time API (optional)** - when [Real-Time API](https://raidcore.gg/gw2/nexus) is installed and active, squad commander/lieutenant roles augment mumble commander checks; editor can import live squad marker positions
+- **Corner icon** - quick access to settings, library, and lieutenant mode toggle
+- **Quick access keybind** - `CM_INTERACT` (default `F`) for AutoMarker interact placement
 
-Squad marker placement uses **Guild Wars 2 in-game keybinds** (via Nexus `GameBinds_*`). This addon does not provide a keybind configuration UI — assign squad marker binds in GW2 Controls. If required binds are missing, a warning is shown and placement is blocked.
+Squad marker placement uses **Guild Wars 2 in-game keybinds** (via Nexus `GameBinds_*`). This addon does not provide a keybind configuration UI - assign squad marker binds in GW2 Controls. If required binds are missing, a warning is shown and placement is blocked.
 
 ## Requirements
 
@@ -79,7 +79,7 @@ Rebuild with the provided `CMakeLists.txt` (static MinGW runtime). The DLL shoul
 x86_64-w64-mingw32-objdump -p dist/NexusCommanderMarkers.dll | rg "DLL Name"
 ```
 
-Expect `KERNEL32.dll`, `USER32.dll`, `WINHTTP.dll`, `msvcrt.dll` — **not**
+Expect `KERNEL32.dll`, `USER32.dll`, `WINHTTP.dll`, `msvcrt.dll` - **not**
 `libstdc++-6.dll`, `libgcc_s_seh-1.dll`, or `libwinpthread-1.dll`.
 
 Also confirm:
@@ -124,10 +124,10 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## Credits
 
-- **Soeed** — BlishHUD Commander Markers, and Nexus port
-- **Manlaan** — original clickable markers in BlishHUD
-- **Freesnöw** — static data hosting (`bhm.blishhud.com`, `assets.gw2dat.com`)
-- **Raidcore** — Nexus addon platform
+- **Soeed** - BlishHUD Commander Markers, and Nexus port
+- **Manlaan** - original clickable markers in BlishHUD
+- **Freesnöw** - static data hosting (`bhm.blishhud.com`, `assets.gw2dat.com`)
+- **Raidcore** - Nexus addon platform
 
 ## Links
 
@@ -138,4 +138,4 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Nexus API headers: Raidcore.GG MIT license.
+MIT - see [LICENSE](LICENSE). Nexus API headers: Raidcore.GG MIT license.

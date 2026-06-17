@@ -63,8 +63,8 @@ void RenderAboutTab() {
     }
 
     SectionHeading("Thank you to:");
-    ImGui::BulletText("Freesnöw — continued static data and config file hosting");
-    ImGui::BulletText("Manlaan — original clickable markers in BlishHUD");
+    ImGui::BulletText("Freesnöw - continued static data and config file hosting");
+    ImGui::BulletText("Manlaan - original clickable markers in BlishHUD");
 
     SectionHeading("Links");
     ImGui::TextWrapped("Original module:");

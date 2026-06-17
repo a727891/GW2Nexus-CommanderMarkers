@@ -3,7 +3,7 @@
 // Incrementally re-enable features while testing for main-thread freezes.
 // Rebuild + deploy after each change. See docs/DEBUGGING.md for the order.
 //
-// Baseline: everything false — load/unload only, optional world-ready log.
+// Baseline: everything false - load/unload only, optional world-ready log.
 
 namespace cm {
 namespace features {
