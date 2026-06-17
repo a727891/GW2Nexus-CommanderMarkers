@@ -50,6 +50,10 @@ void CenterCursorInCell(float columnWidth, float contentWidth, float rowHeight,
 
 float ActionButtonHeight() { return ImGui::GetFrameHeight(); }
 
+SquadMarker ListingIconForRow(size_t listingIndex) {
+    return static_cast<SquadMarker>(((listingIndex + 1) % 8) + 1);
+}
+
 void NotifyImportSuccess(const AppState& state, const std::string& markerSetName) {
     if (!state.api || !state.api->GUI_SendAlert) {
         return;
@@ -109,8 +113,7 @@ void RenderCommunityRow(AppState& state,
     ImGui::TableSetColumnIndex(0);
     RenderImportButton(state, markerSet);
 
-    const int iconIndex = markerSet.markers.empty() ? 1 : markerSet.markers[0].icon;
-    const SquadMarker squadMarker = static_cast<SquadMarker>(std::clamp(iconIndex, 1, 8));
+    const SquadMarker squadMarker = ListingIconForRow(rowIndex);
     const ImTextureID icon = TextureService::GetTexture(squadMarker);
 
     ImGui::TableSetColumnIndex(1);

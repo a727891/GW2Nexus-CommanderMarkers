@@ -45,6 +45,10 @@ void CenterCursorInCell(float columnWidth, float contentWidth, float rowHeight,
 
 float ActionButtonHeight() { return ImGui::GetFrameHeight(); }
 
+SquadMarker ListingIconForRow(size_t listingIndex) {
+    return static_cast<SquadMarker>(((listingIndex + 1) % 8) + 1);
+}
+
 bool ActionIconButton(const char* id, ImTextureID icon, float height, const char* tooltip) {
     ImGui::PushID(id);
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -121,9 +125,7 @@ void RenderMarkerSetRow(AppState& state,
                                ImGui::GetColorU32(ImVec4(0.42f, 0.12f, 0.12f, 0.38f)));
     }
 
-    const int iconIndex = markerSet.markers.empty() ? 1 : markerSet.markers[0].icon;
-    const SquadMarker squadMarker =
-        static_cast<SquadMarker>(std::clamp(iconIndex, 1, 8));
+    const SquadMarker squadMarker = ListingIconForRow(listingIndex);
     const ImTextureID icon = markerSet.enabled ? TextureService::GetTexture(squadMarker) :
                                                  TextureService::GetTexture(SquadMarker::Clear);
     const float rowHeight = CalcLibraryRowHeight();
