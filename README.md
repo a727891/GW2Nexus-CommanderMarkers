@@ -126,7 +126,7 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 - **Soeed** — BlishHUD Commander Markers, and Nexus port
 - **Manlaan** — original clickable markers in BlishHUD
-- **freesnow** — static data hosting (`bhm.blishhud.com`, `assets.gw2dat.com`)
+- **Freesnöw** — static data hosting (`bhm.blishhud.com`, `assets.gw2dat.com`)
 - **Raidcore** — Nexus addon platform
 
 ## Links

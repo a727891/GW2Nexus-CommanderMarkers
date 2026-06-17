@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping maintain **Commander Markers** for Nexus. This addon is a port of the [BlishHUD Commander Markers](https://github.com/manlaan/BlishHud-CommanderMarkers) module. Community marker sets are shared between both clients via JSON hosted by freesnow.
+Thanks for helping maintain **Commander Markers** for Nexus. This addon is a port of the [BlishHUD Commander Markers](https://github.com/manlaan/BlishHud-CommanderMarkers) module. Community marker sets are shared between both clients via JSON hosted by Freesnöw.
 
 ## Development setup
 
