@@ -181,7 +181,8 @@ extern "C" __declspec(dllexport) AddonDefinition_t* GetAddonDef() {
         def.Load = AddonLoad;
         def.Unload = AddonUnload;
         def.Flags = AF_None;
-        def.Provider = UP_None;
+        def.Provider = UP_GitHub;
+        def.UpdateLink = cm::kUpdateLink;
         initialized = true;
     }
     return &def;

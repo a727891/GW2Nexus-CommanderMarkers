@@ -8,7 +8,7 @@ namespace cm {
 inline constexpr int32_t kSignature = 0x60018002;
 inline constexpr const char* kDisplayName = "Commander Markers";
 inline constexpr const char* kLogChannel = "Commander Markers";
-inline constexpr const char* kAuthor = "Soeed";
+inline constexpr const char* kAuthor = "Soeed.4160";
 inline constexpr const char* kDescription =
     "Place squad markers with a click, or auto-place saved marker sets.";
 inline constexpr const char* kSourceRepoUrl =
@@ -17,5 +17,7 @@ inline constexpr const char* kCommunityMarkersUrl =
     "https://bhm.blishhud.com/Manlaan.CommanderMarkers/Community/Markers.json";
 inline constexpr const char* kPatchNotesUrl =
     "https://pkgs.blishhud.com/Manlaan.CommanderMarkers.html";
+inline constexpr const char* kUpdateLink =
+    "https://github.com/a727891/GW2Nexus-commanderMarkers";
 
 }  // namespace cm
