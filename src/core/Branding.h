@@ -15,6 +15,19 @@ inline constexpr const char* kSourceRepoUrl =
     "https://github.com/manlaan/BlishHud-CommanderMarkers";
 inline constexpr const char* kCommunityMarkersUrl =
     "https://bhm.blishhud.com/Manlaan.CommanderMarkers/Community/Markers.json";
+
+#if defined(CM_LOCAL_TEST)
+inline constexpr bool kLocalTest = true;
+inline constexpr const char* kManifestUrl =
+    "http://localhost:3000/commander_markers_v1.json";
+inline constexpr const char* kDefaultServerUrl = "http://localhost:3000";
+#else
+inline constexpr bool kLocalTest = false;
+inline constexpr const char* kManifestUrl =
+    "https://gw2geoguesser.fly.dev/commander_markers_v1.json";
+inline constexpr const char* kDefaultServerUrl = "https://gw2geoguesser.fly.dev";
+#endif
+
 inline constexpr const char* kPatchNotesUrl =
     "https://pkgs.blishhud.com/Manlaan.CommanderMarkers.html";
 inline constexpr const char* kUpdateLink =

@@ -3,6 +3,7 @@
 #include "core/Branding.h"
 #include "core/MumbleUtils.h"
 #include "services/Gw2MapApiClient.h"
+#include "services/HttpClient.h"
 #include "ui/DatAssetIconService.h"
 #include "services/RtApiService.h"
 #include "ui/QuickAccessService.h"
@@ -20,7 +21,9 @@ namespace cm {
 AppState::AppState()
     : mapData(""),
       markerListing(""),
-      communityMarkers(""),
+      communityCatalog(""),
+      previewImageCache(""),
+      mapWatch(),
       placementService(nullptr) {}
 
 AppState& AppState::Instance() {
@@ -30,6 +33,10 @@ AppState& AppState::Instance() {
 
 std::string AppState::settingsPath() const {
     return (std::filesystem::path(addonDir) / "settings.json").string();
+}
+
+std::string AppState::apiAccountsPath() const {
+    return (std::filesystem::path(addonDir) / "api_accounts.json").string();
 }
 
 float AppState::UiScale() const {
@@ -129,7 +136,35 @@ void AppState::ProcessDeferredInit() {
             EnsureOptionsReady();
             mapData.SetAddonDir(addonDir);
             markerListing.SetAddonDir(addonDir);
-            communityMarkers.SetAddonDir(addonDir);
+            communityCatalog.SetAddonDir(addonDir);
+            previewImageCache.SetAddonDir(addonDir);
+            moduleManifest.LoadOrFetch(kManifestUrl);
+            communityCatalog.SetManifest(&moduleManifest.Get());
+            subtokenService.SetManifest(&moduleManifest.Get());
+            previewImageCache.SetServerUrl(moduleManifest.Get().serverUrl);
+            if (kLocalTest) {
+                std::ostringstream msg;
+                msg << "Local test manifest "
+                    << (moduleManifest.FetchSucceeded() ? "OK" : "FAILED") << " — "
+                    << kManifestUrl << " (server " << moduleManifest.Get().serverUrl << ")";
+                api->Log(moduleManifest.FetchSucceeded() ? LOGL_INFO : LOGL_WARNING,
+                         kLogChannel, msg.str().c_str());
+
+                const auto checkUrl =
+                    moduleManifest.Get().Absolute(moduleManifest.Get().communityCheckUrl);
+                const auto check = HttpGetUrlEx(checkUrl);
+                if (check.statusCode >= 200 && check.statusCode < 300) {
+                    std::ostringstream ok;
+                    ok << "Local test community check OK: " << checkUrl;
+                    api->Log(LOGL_INFO, kLogChannel, ok.str().c_str());
+                } else {
+                    std::ostringstream err;
+                    err << "Local test community check failed (HTTP " << check.statusCode
+                        << "): " << checkUrl;
+                    api->Log(LOGL_WARNING, kLogChannel, err.str().c_str());
+                }
+            }
+            accountRegistry.Load(apiAccountsPath());
             markerListing.SetOnMarkersChanged(nullptr);
             placementService.SetApi(api);
             initStep = 1;
@@ -153,7 +188,7 @@ void AppState::ProcessDeferredInit() {
             break;
 
         case 3:
-            communityMarkers.LoadCached();
+            communityCatalog.LoadCached();
             mapWatch.Initialize(&mapData, &markerListing, &placementService, &settings,
                                 &playerIdentity);
             TextureService::Initialize(api, addonDir);
@@ -213,7 +248,19 @@ void AppState::ProcessPendingCommunitySync() {
     communitySyncPending.store(false);
 
     std::thread([this]() {
-        const bool updated = communityMarkers.SyncCommunity();
+        const bool updated = communityCatalog.SyncCatalog();
+        if (kLocalTest && api) {
+            const auto count = communityCatalog.GetSets().size();
+            if (updated) {
+                std::ostringstream msg;
+                msg << "Local test catalog synced: " << count << " set(s) from "
+                    << moduleManifest.Get().serverUrl;
+                api->Log(LOGL_INFO, kLogChannel, msg.str().c_str());
+            } else if (count == 0) {
+                api->Log(LOGL_WARNING, kLogChannel,
+                         "Local test catalog sync returned no sets — is the CM server running?");
+            }
+        }
         if (updated) {
             communityUpdatedNotice.store(true);
         }

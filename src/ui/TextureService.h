@@ -17,6 +17,7 @@ public:
     static ImTextureID GetTexture(SquadMarker marker);
     static ImTextureID GetFadedTexture(SquadMarker marker);
     static ImTextureID GetUiTexture(const char* name);
+    static ImTextureID GetThumbTexture(const std::string& cacheKey, const std::string& absolutePath);
     static ImTextureID GetTriggerMarkerTexture();
     static const char* SquadMarkerAssetId(SquadMarker marker);
     static const char* SquadMarkerFadedAssetId(SquadMarker marker);

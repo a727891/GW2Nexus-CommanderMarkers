@@ -46,11 +46,12 @@ fi
 
 if [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
   echo "Configuring Release build..."
-  cmake -B "$BUILD_DIR" -G Ninja \
-    -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" \
-    -DCMAKE_BUILD_TYPE=Release \
-    "$ROOT"
 fi
+cmake -B "$BUILD_DIR" -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCM_LOCAL_TEST=OFF \
+  "$ROOT"
 
 GENERATE_METADATA "$BUILD_DIR" "COMM-MARKERS-Nexus"
 

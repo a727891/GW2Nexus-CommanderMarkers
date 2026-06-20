@@ -179,6 +179,22 @@ ImTextureID TextureService::GetUiTexture(const char* name) {
                         "textures/" + std::string(name) + ".png");
 }
 
+ImTextureID TextureService::GetThumbTexture(const std::string& cacheKey,
+                                            const std::string& absolutePath) {
+    if (cacheKey.empty() || absolutePath.empty()) {
+        return nullptr;
+    }
+    std::lock_guard lock(g_cacheMutex);
+    if (const auto it = g_textureCache.find(cacheKey); it != g_textureCache.end()) {
+        return it->second;
+    }
+    const ImTextureID tex = TextureFromFile(cacheKey.c_str(), absolutePath);
+    if (tex) {
+        g_textureCache[cacheKey] = tex;
+    }
+    return tex;
+}
+
 ImTextureID TextureService::GetTriggerMarkerTexture() {
     if (ImTextureID tex = GetUiTexture("mapmarker")) {
         return tex;

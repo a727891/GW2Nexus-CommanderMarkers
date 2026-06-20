@@ -25,10 +25,16 @@ public:
 
     void SaveMarker(const MarkerSet& markerSet);
     bool ContainsMarkerSet(const MarkerSet& markerSet) const;
+    bool ContainsCommunitySetId(const std::string& communitySetId) const;
     void EditMarker(size_t index, const MarkerSet& markerSet);
     void DeleteMarker(const MarkerSet& markerSet);
     void ResetToDefault();
     void ReloadFromFile();
+
+    static std::string DisplayAuthor(const MarkerSet& markerSet);
+    static bool IsCommunityLinked(const MarkerSet& markerSet);
+    static bool IsShareableWithCommunity(const MarkerSet& markerSet);
+    static MarkerSet DuplicateAsEditableCopy(const MarkerSet& markerSet);
 
     const std::string& Version() const { return version_; }
 
@@ -40,7 +46,7 @@ private:
     void NotifyChanged();
 
     std::string addonDir_;
-    std::string version_ = "2.0.0";
+    std::string version_ = "3.0.0";
     std::vector<MarkerSet> presets_;
     std::function<void()> onMarkersChanged_;
     bool suppressNotify_ = false;

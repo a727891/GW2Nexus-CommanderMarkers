@@ -23,6 +23,10 @@ public:
 
     static MarkerListingFile MarkerListingFileFromJson(const nlohmann::json& j);
     static nlohmann::json MarkerListingFileToJson(const MarkerListingFile& listing);
+
+    // Server submission body — only fields accepted by POST /submissions (no sync metadata).
+    static nlohmann::json SubmissionPayloadToJson(const MarkerSet& markerSet,
+                                                  const std::string& suggestedCategory);
 };
 
 }  // namespace cm

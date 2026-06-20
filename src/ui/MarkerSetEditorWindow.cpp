@@ -3,6 +3,9 @@
 #include "core/AppState.h"
 #include "core/MumbleUtils.h"
 #include "data/MarkerSetClipboard.h"
+#include "data/MarkerSetJson.h"
+#include "services/MarkerListing.h"
+#include "utils/UuidUtils.h"
 #include "services/RtApiService.h"
 #include "ui/MapPickerUi.h"
 #include "ui/TextureService.h"
@@ -14,6 +17,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <imgui.h>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 
@@ -371,6 +375,12 @@ bool TrySaveDraft(AppState& state) {
     }
 
     g_state.validationError.clear();
+    if (g_state.draft.id.empty()) {
+        g_state.draft.id = GenerateUuidV4();
+    }
+    if (g_state.draft.source.empty()) {
+        g_state.draft.source = "custom";
+    }
     SaveDraft(state);
     return true;
 }
@@ -637,6 +647,8 @@ void OpenNew(AppState& state) {
     g_state.showDeleteDialog = false;
 
     MarkerSet markerSet{};
+    markerSet.id = GenerateUuidV4();
+    markerSet.source = "custom";
     if (state.mumbleLink) {
         markerSet.mapId = static_cast<int>(state.mumbleLink->Context.MapID);
         ApplyPlayerPosition(state, markerSet.trigger, &markerSet.mapId);
@@ -647,9 +659,30 @@ void OpenNew(AppState& state) {
 }
 
 void OpenExisting(AppState& state, const MarkerSet& markerSet, int listingIndex) {
+    if (MarkerListing::IsCommunityLinked(markerSet)) {
+        OpenPersonalizedFromTemplate(state, markerSet);
+        return;
+    }
     g_state.open = true;
     g_state.listingIndex = listingIndex;
     g_state.draft = markerSet;
+    g_state.importBuffer.clear();
+    g_state.importError.clear();
+    g_state.validationError.clear();
+    g_state.showUnsavedDialog = false;
+    g_state.showDeleteDialog = false;
+    LoadSlotsFromDraft();
+    SetBaselineFromDraft();
+    (void)state;
+}
+
+void OpenPersonalizedFromTemplate(AppState& state, const MarkerSet& templateSet) {
+    g_state.open = true;
+    g_state.listingIndex = -1;
+    g_state.draft = MarkerListing::DuplicateAsEditableCopy(templateSet);
+    if (g_state.draft.name == templateSet.name && !g_state.draft.name.empty()) {
+        g_state.draft.name += " (personal)";
+    }
     g_state.importBuffer.clear();
     g_state.importError.clear();
     g_state.validationError.clear();
@@ -825,9 +858,17 @@ void Render(AppState& state) {
 
         if (OptionsUiKit::TexturedButton("import_confirm", "Import",
                                          TextureService::GetUiTexture("iconImport"))) {
+            const auto resolver = [&state](const std::string& communitySetId,
+                                           const std::string& name, MarkerSet& out) -> bool {
+                (void)name;
+                return state.communityCatalog.FetchSetDetail(communitySetId, out, nullptr);
+            };
             if (const std::optional<MarkerSet> imported =
-                    MarkerSetClipboard::ImportFromText(g_state.importBuffer)) {
+                    MarkerSetClipboard::ImportFromText(g_state.importBuffer, resolver)) {
                 g_state.draft = *imported;
+                if (g_state.draft.id.empty()) {
+                    g_state.draft.id = GenerateUuidV4();
+                }
                 LoadSlotsFromDraft();
                 g_state.importError.clear();
                 ImGui::CloseCurrentPopup();
