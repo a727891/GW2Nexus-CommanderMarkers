@@ -18,7 +18,7 @@ namespace {
 
 constexpr float kIconColumnWidth = 72.0f;
 constexpr float kIconSize = 64.0f;
-constexpr float kActionsColumnWidth = 188.0f;
+constexpr float kActionsColumnWidth = 280.0f;
 constexpr float kStatusColumnWidth = 96.0f;
 
 char g_searchQuery[128] = "";
@@ -183,13 +183,19 @@ void RenderMarkerSetRow(AppState& state,
     const float editWidth =
         style.FramePadding.x * 2.0f + 16.0f + style.ItemInnerSpacing.x +
         ImGui::CalcTextSize(editLabel).x;
+    const float deleteWidth =
+        style.FramePadding.x * 2.0f + 16.0f + style.ItemInnerSpacing.x +
+        ImGui::CalcTextSize("Delete").x;
     const float previewWidth = actionHeight;
     const float placeWidth = style.FramePadding.x * 2.0f + ImGui::CalcTextSize("Place").x;
     const bool showMapActions = markerSet.mapId == currentMapId;
-    const float actionsWidth =
-        showMapActions ? editWidth + style.ItemSpacing.x + previewWidth + style.ItemSpacing.x +
-                             placeWidth :
-                         editWidth;
+    float actionsWidth = editWidth;
+    if (communityLinked) {
+        actionsWidth += style.ItemSpacing.x + deleteWidth;
+    }
+    if (showMapActions) {
+        actionsWidth += style.ItemSpacing.x + previewWidth + style.ItemSpacing.x + placeWidth;
+    }
 
     CenterCursorInCell(kActionsColumnWidth, actionsWidth, rowHeight, actionHeight);
 
@@ -205,6 +211,18 @@ void RenderMarkerSetRow(AppState& state,
     if (ImGui::IsItemHovered() && communityLinked) {
         ImGui::SetTooltip(
             "Open the editor with this set as a template. Save to add your personalized copy.");
+    }
+
+    if (communityLinked) {
+        ImGui::SameLine(0.0f, style.ItemSpacing.x);
+        if (TexturedButton("delete", "Delete", TextureService::GetUiTexture("iconDelete"), 16.0f,
+                           ImVec2(0.0f, actionHeight))) {
+            state.mapWatch.RemovePreviewMarkerSet();
+            state.markerListing.DeleteMarker(markerSet);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Remove this imported set from your library");
+        }
     }
 
     if (showMapActions) {
@@ -248,8 +266,11 @@ void Render(AppState& state) {
         "Manage saved marker sets. Imported community sets are read-only — use Personalize to "
         "create your own editable copy.");
 
-    SettingCheckbox("Filter to current map", &state.settings.libraryFilterCurrentMap,
+    SettingCheckbox("Current map", &state.settings.libraryFilterCurrentMap,
                     "Only show marker sets for your current map.");
+    ImGui::SameLine();
+    SettingCheckbox("Mine", &state.settings.libraryFilterMine,
+                    "Hide marker sets imported from the community library.");
 
     ImGui::Spacing();
 
@@ -304,6 +325,10 @@ void Render(AppState& state) {
             for (size_t i = 0; i < markerSets.size(); ++i) {
                 const MarkerSet& markerSet = markerSets[i];
                 if (state.settings.libraryFilterCurrentMap && markerSet.mapId != currentMapId) {
+                    continue;
+                }
+                if (state.settings.libraryFilterMine &&
+                    MarkerListing::IsCommunityLinked(markerSet)) {
                     continue;
                 }
                 if (!LibrarySearchUi::Matches(state, markerSet, searchLower)) {

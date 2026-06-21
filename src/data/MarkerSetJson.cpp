@@ -53,8 +53,14 @@ void ReadMarkerSetFields(const nlohmann::json& j, MarkerSet& markerSet) {
         markerSet.trigger = WorldCoordFromJson(j["trigger"]);
     }
     markerSet.markers.clear();
+    const nlohmann::json* markerArray = nullptr;
     if (j.contains("markers") && j["markers"].is_array()) {
-        for (const auto& markerJ : j["markers"]) {
+        markerArray = &j["markers"];
+    } else if (j.contains("marks") && j["marks"].is_array()) {
+        markerArray = &j["marks"];
+    }
+    if (markerArray) {
+        for (const auto& markerJ : *markerArray) {
             markerSet.markers.push_back(MarkerCoordFromJson(markerJ));
         }
     }
@@ -183,8 +189,7 @@ nlohmann::json MarkerSetJson::MarkerListingFileToJson(const MarkerListingFile& l
     return j;
 }
 
-nlohmann::json MarkerSetJson::SubmissionPayloadToJson(const MarkerSet& markerSet,
-                                                      const std::string& suggestedCategory) {
+nlohmann::json MarkerSetJson::PortablePayloadToJson(const MarkerSet& markerSet) {
     nlohmann::json payload = nlohmann::json::object();
     payload["name"] = markerSet.name;
     payload["description"] = markerSet.description;
@@ -195,6 +200,12 @@ nlohmann::json MarkerSetJson::SubmissionPayloadToJson(const MarkerSet& markerSet
     for (const auto& marker : markerSet.markers) {
         payload["markers"].push_back(MarkerCoordToJson(marker));
     }
+    return payload;
+}
+
+nlohmann::json MarkerSetJson::SubmissionPayloadToJson(const MarkerSet& markerSet,
+                                                      const std::string& suggestedCategory) {
+    nlohmann::json payload = PortablePayloadToJson(markerSet);
     payload["suggestedCategory"] = suggestedCategory;
     return payload;
 }
