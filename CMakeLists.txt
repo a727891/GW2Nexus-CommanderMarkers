@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(NexusCommanderMarkers LANGUAGES CXX)
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -57,11 +59,12 @@ add_custom_command(
            ${EMBEDDED_DEFAULTS_CPP} ${EMBEDDED_DEFAULTS_H}
            ${EMBEDDED_BUILTIN_IDS_CPP} ${EMBEDDED_BUILTIN_IDS_H}
     COMMAND ${CMAKE_COMMAND} -E make_directory "${EMBEDDED_ASSETS_DIR}"
-    COMMAND python3 "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_assets.py"
-            --textures-dir "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures"
-            --defaults-json "${DEFAULT_MARKERS_JSON}"
-            --builtin-ids-json "${BUILTIN_IDS_JSON}"
+    COMMAND ${Python3_EXECUTABLE} scripts/embed_assets.py
+            --textures-dir assets/textures
+            --defaults-json assets/data/default_markers.json
+            --builtin-ids-json assets/data/builtin_marker_set_ids.json
             --output-dir "${EMBEDDED_ASSETS_DIR}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS ${TEXTURE_FILES} "${DEFAULT_MARKERS_JSON}" "${BUILTIN_IDS_JSON}"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_assets.py"
     COMMENT "Embedding Commander Markers assets"
