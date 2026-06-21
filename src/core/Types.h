@@ -86,12 +86,46 @@ struct MarkerCoord : WorldCoord {
 };
 
 struct MarkerSet {
+    std::string id;
+    std::string communitySetId;
+    std::string author;
+    std::string source;  // custom, builtin, community, share
+    std::string communityUpdatedAt;
+    std::string localModifiedAt;
+    std::string syncBaselineHash;
+    bool syncDetached = false;
     std::string name;
     std::string description;
     int mapId = 0;
     WorldCoord trigger{};
     std::vector<MarkerCoord> markers;
     bool enabled = true;
+};
+
+struct CommunitySetSummary {
+    std::string id;
+    int categoryId = 0;
+    std::string categoryName;
+    std::string author;
+    std::string name;
+    std::string description;
+    int mapId = 0;
+    std::string mapName;
+    bool enabled = true;
+    std::string previewThumbUrl;
+    std::string previewLargeUrl;
+    std::string updatedAt;
+};
+
+struct CommunityCategoryEntry {
+    int id = 0;
+    std::string name;
+};
+
+struct CommunityIndexFile {
+    std::string lastEdit;
+    std::string fetchedAt;
+    std::vector<CommunitySetSummary> sets;
 };
 
 struct CommunityMarkerSet : MarkerSet {
@@ -109,7 +143,8 @@ struct CommunitySets {
 };
 
 struct MarkerListingFile {
-    std::string version = "2.0.0";
+    std::string version = "3.0.0";
+    std::string migratedAt;
     std::vector<MarkerSet> squadMarkerPreset;
 };
 

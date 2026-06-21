@@ -1,11 +1,16 @@
 #pragma once
 
 #include "core/SettingsStore.h"
+#include "core/AccountRegistry.h"
 #include "data/MapDataCache.h"
-#include "services/CommunityMarkerService.h"
+#include "services/CommunityCatalogService.h"
+#include "services/Gw2ApiClient.h"
 #include "services/MapWatchService.h"
 #include "services/MarkerListing.h"
 #include "services/MarkerPlacementService.h"
+#include "services/ModuleManifestService.h"
+#include "services/PreviewImageCache.h"
+#include "services/SubtokenService.h"
 
 #include "mumble/Mumble.h"
 #include "nexus/Nexus.h"
@@ -32,7 +37,12 @@ public:
 
     MapDataCache mapData;
     MarkerListing markerListing;
-    CommunityMarkerService communityMarkers;
+    ModuleManifestService moduleManifest;
+    CommunityCatalogService communityCatalog;
+    PreviewImageCache previewImageCache;
+    AccountRegistry accountRegistry;
+    Gw2ApiClient gw2ApiClient;
+    SubtokenService subtokenService;
     MapWatchService mapWatch;
     MarkerPlacementService placementService;
 
@@ -74,6 +84,7 @@ public:
     void ProcessBackgroundNotices();
 
     std::string settingsPath() const;
+    std::string apiAccountsPath() const;
 
 private:
     void CheckRequiredBinds();

@@ -29,14 +29,22 @@ MarkerCoord MarkerCoordFromJson(const nlohmann::json& j) {
 }
 
 nlohmann::json MarkerCoordToJson(const MarkerCoord& coord) {
-    return {{"i", coord.icon},
-            {"d", coord.name},
-            {"x", coord.x},
-            {"y", coord.y},
-            {"z", coord.z}};
+    nlohmann::json row = {{"i", coord.icon}, {"x", coord.x}, {"y", coord.y}, {"z", coord.z}};
+    if (!coord.name.empty()) {
+        row["d"] = coord.name;
+    }
+    return row;
 }
 
 void ReadMarkerSetFields(const nlohmann::json& j, MarkerSet& markerSet) {
+    markerSet.id = j.value("id", "");
+    markerSet.communitySetId = j.value("communitySetId", "");
+    markerSet.author = j.value("author", "");
+    markerSet.source = j.value("source", "");
+    markerSet.communityUpdatedAt = j.value("communityUpdatedAt", "");
+    markerSet.localModifiedAt = j.value("localModifiedAt", "");
+    markerSet.syncBaselineHash = j.value("syncBaselineHash", "");
+    markerSet.syncDetached = j.value("syncDetached", false);
     markerSet.name = j.value("name", "");
     markerSet.description = j.value("description", "");
     markerSet.mapId = j.value("mapId", 0);
@@ -45,14 +53,28 @@ void ReadMarkerSetFields(const nlohmann::json& j, MarkerSet& markerSet) {
         markerSet.trigger = WorldCoordFromJson(j["trigger"]);
     }
     markerSet.markers.clear();
+    const nlohmann::json* markerArray = nullptr;
     if (j.contains("markers") && j["markers"].is_array()) {
-        for (const auto& markerJ : j["markers"]) {
+        markerArray = &j["markers"];
+    } else if (j.contains("marks") && j["marks"].is_array()) {
+        markerArray = &j["marks"];
+    }
+    if (markerArray) {
+        for (const auto& markerJ : *markerArray) {
             markerSet.markers.push_back(MarkerCoordFromJson(markerJ));
         }
     }
 }
 
 void WriteMarkerSetFields(const MarkerSet& markerSet, nlohmann::json& j) {
+    if (!markerSet.id.empty()) j["id"] = markerSet.id;
+    if (!markerSet.communitySetId.empty()) j["communitySetId"] = markerSet.communitySetId;
+    if (!markerSet.author.empty()) j["author"] = markerSet.author;
+    if (!markerSet.source.empty()) j["source"] = markerSet.source;
+    if (!markerSet.communityUpdatedAt.empty()) j["communityUpdatedAt"] = markerSet.communityUpdatedAt;
+    if (!markerSet.localModifiedAt.empty()) j["localModifiedAt"] = markerSet.localModifiedAt;
+    if (!markerSet.syncBaselineHash.empty()) j["syncBaselineHash"] = markerSet.syncBaselineHash;
+    if (markerSet.syncDetached) j["syncDetached"] = true;
     j["name"] = markerSet.name;
     j["description"] = markerSet.description;
     j["mapId"] = markerSet.mapId;
@@ -144,6 +166,7 @@ MarkerListingFile MarkerSetJson::MarkerListingFileFromJson(const nlohmann::json&
     MarkerListingFile listing{};
     if (!j.is_object()) return listing;
     listing.version = j.value("version", "2.0.0");
+    listing.migratedAt = j.value("migratedAt", "");
     listing.squadMarkerPreset.clear();
     if (j.contains("squadMarkerPreset") && j["squadMarkerPreset"].is_array()) {
         for (const auto& markerSetJ : j["squadMarkerPreset"]) {
@@ -156,11 +179,35 @@ MarkerListingFile MarkerSetJson::MarkerListingFileFromJson(const nlohmann::json&
 nlohmann::json MarkerSetJson::MarkerListingFileToJson(const MarkerListingFile& listing) {
     nlohmann::json j = nlohmann::json::object();
     j["version"] = listing.version;
+    if (!listing.migratedAt.empty()) {
+        j["migratedAt"] = listing.migratedAt;
+    }
     j["squadMarkerPreset"] = nlohmann::json::array();
     for (const auto& markerSet : listing.squadMarkerPreset) {
         j["squadMarkerPreset"].push_back(MarkerSetToJson(markerSet));
     }
     return j;
+}
+
+nlohmann::json MarkerSetJson::PortablePayloadToJson(const MarkerSet& markerSet) {
+    nlohmann::json payload = nlohmann::json::object();
+    payload["name"] = markerSet.name;
+    payload["description"] = markerSet.description;
+    payload["mapId"] = markerSet.mapId;
+    payload["enabled"] = markerSet.enabled;
+    payload["trigger"] = WorldCoordToJson(markerSet.trigger);
+    payload["markers"] = nlohmann::json::array();
+    for (const auto& marker : markerSet.markers) {
+        payload["markers"].push_back(MarkerCoordToJson(marker));
+    }
+    return payload;
+}
+
+nlohmann::json MarkerSetJson::SubmissionPayloadToJson(const MarkerSet& markerSet,
+                                                      const std::string& suggestedCategory) {
+    nlohmann::json payload = PortablePayloadToJson(markerSet);
+    payload["suggestedCategory"] = suggestedCategory;
+    return payload;
 }
 
 }  // namespace cm

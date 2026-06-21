@@ -6,6 +6,7 @@
 #include "services/RtApiService.h"
 #include "ui/CommunityLibraryUi.h"
 #include "ui/LibraryEditorUi.h"
+#include "ui/OptionsApiTab.h"
 #include "ui/MarkersPanel.h"
 #include "ui/OptionsUiKit.h"
 #include "Version.h"
@@ -223,6 +224,9 @@ void RenderGeneralTab(AppState& state) {
                      static_cast<int>(markerLabels.size()))) {
         state.settings.cornerTexture = static_cast<SquadMarker>(markerValues[textureIndex]);
     }
+
+    ImGui::Spacing();
+    OptionsApiTab::Render(state);
 }
 
 }  // namespace

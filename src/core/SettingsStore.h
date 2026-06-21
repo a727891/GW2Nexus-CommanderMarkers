@@ -30,6 +30,7 @@ struct SettingsStore {
     bool combatPlacement = false;
     int placementDelayMs = 100;
     bool libraryFilterCurrentMap = false;
+    bool libraryFilterMine = false;
     bool communityLibraryShowAvailable = false;
     bool libraryEditorConfirmUnsaved = true;
 

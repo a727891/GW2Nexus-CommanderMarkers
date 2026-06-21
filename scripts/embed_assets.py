@@ -104,6 +104,53 @@ std::size_t Count() { return sizeof(kAssets) / sizeof(kAssets[0]); }
     out_cpp.write_text(cpp, encoding="utf-8")
 
 
+def write_embedded_json(name: str, source_path: Path, namespace: str, out_cpp: Path, out_h: Path) -> None:
+    if not source_path.is_file():
+        raise SystemExit(f"missing embedded json: {source_path}")
+    data = source_path.read_bytes()
+    out_h.write_text(
+        f"""#pragma once
+
+#include <cstddef>
+
+namespace cm {{
+namespace {namespace} {{
+
+const char* Json();
+std::size_t JsonSize();
+
+}}  // namespace {namespace}
+}}  // namespace cm
+""",
+        encoding="utf-8",
+    )
+    out_cpp.write_text(
+        f"""#include "{out_h.name}"
+
+namespace cm {{
+namespace {namespace} {{
+
+alignas(4) const unsigned char kJson[] = {{
+"""
+        + format_bytes(data)
+        + f"""
+}};
+
+const char* Json() {{
+    return reinterpret_cast<const char*>(kJson);
+}}
+
+std::size_t JsonSize() {{
+    return {len(data)};
+}}
+
+}}  // namespace {namespace}
+}}  // namespace cm
+""",
+        encoding="utf-8",
+    )
+
+
 def write_default_markers(defaults_path: Path, out_cpp: Path, out_h: Path) -> None:
     if not defaults_path.is_file():
         raise SystemExit(f"missing default marker library: {defaults_path}")
@@ -157,6 +204,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--textures-dir", type=Path, required=True)
     parser.add_argument("--defaults-json", type=Path, required=True)
+    parser.add_argument("--builtin-ids-json", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -169,6 +217,13 @@ def main() -> int:
         args.defaults_json,
         args.output_dir / "EmbeddedDefaults.cpp",
         args.output_dir / "EmbeddedDefaults.h",
+    )
+    write_embedded_json(
+        "BuiltinMarkerSetIds",
+        args.builtin_ids_json,
+        "EmbeddedBuiltinIds",
+        args.output_dir / "EmbeddedBuiltinIds.cpp",
+        args.output_dir / "EmbeddedBuiltinIds.h",
     )
     return 0
 

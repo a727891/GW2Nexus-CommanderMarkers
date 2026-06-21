@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 project(NexusCommanderMarkers LANGUAGES CXX)
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(NEXUSCOMMANDERMARKERS_CROSS_COMPILE "Cross-compile for Windows using MinGW" ON)
+option(CM_LOCAL_TEST "Point at localhost:3000 CM server; disable Nexus update provider" OFF)
 
 if(NEXUSCOMMANDERMARKERS_CROSS_COMPILE)
     if(NOT CMAKE_TOOLCHAIN_FILE)
@@ -46,17 +49,23 @@ set(EMBEDDED_TEXTURES_CPP "${EMBEDDED_ASSETS_DIR}/EmbeddedTextures.cpp")
 set(EMBEDDED_TEXTURES_H "${EMBEDDED_ASSETS_DIR}/EmbeddedTextures.h")
 set(EMBEDDED_DEFAULTS_CPP "${EMBEDDED_ASSETS_DIR}/EmbeddedDefaults.cpp")
 set(EMBEDDED_DEFAULTS_H "${EMBEDDED_ASSETS_DIR}/EmbeddedDefaults.h")
+set(EMBEDDED_BUILTIN_IDS_CPP "${EMBEDDED_ASSETS_DIR}/EmbeddedBuiltinIds.cpp")
+set(EMBEDDED_BUILTIN_IDS_H "${EMBEDDED_ASSETS_DIR}/EmbeddedBuiltinIds.h")
 set(DEFAULT_MARKERS_JSON "${CMAKE_CURRENT_SOURCE_DIR}/assets/data/default_markers.json")
+set(BUILTIN_IDS_JSON "${CMAKE_CURRENT_SOURCE_DIR}/assets/data/builtin_marker_set_ids.json")
 
 add_custom_command(
     OUTPUT ${EMBEDDED_TEXTURES_CPP} ${EMBEDDED_TEXTURES_H}
            ${EMBEDDED_DEFAULTS_CPP} ${EMBEDDED_DEFAULTS_H}
+           ${EMBEDDED_BUILTIN_IDS_CPP} ${EMBEDDED_BUILTIN_IDS_H}
     COMMAND ${CMAKE_COMMAND} -E make_directory "${EMBEDDED_ASSETS_DIR}"
-    COMMAND python3 "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_assets.py"
-            --textures-dir "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures"
-            --defaults-json "${DEFAULT_MARKERS_JSON}"
+    COMMAND ${Python3_EXECUTABLE} scripts/embed_assets.py
+            --textures-dir assets/textures
+            --defaults-json assets/data/default_markers.json
+            --builtin-ids-json assets/data/builtin_marker_set_ids.json
             --output-dir "${EMBEDDED_ASSETS_DIR}"
-    DEPENDS ${TEXTURE_FILES} "${DEFAULT_MARKERS_JSON}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDS ${TEXTURE_FILES} "${DEFAULT_MARKERS_JSON}" "${BUILTIN_IDS_JSON}"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_assets.py"
     COMMENT "Embedding Commander Markers assets"
     VERBATIM
@@ -72,6 +81,14 @@ set(SRC_FILES
     src/data/MapDataCache.cpp
     src/data/StaticDataLoader.cpp
     src/data/CommunityMeta.cpp
+    src/data/SyncBaselineHash.cpp
+    src/utils/UuidUtils.cpp
+    src/core/AccountRegistry.cpp
+    src/services/Gw2ApiClient.cpp
+    src/services/ModuleManifestService.cpp
+    src/services/CommunityCatalogService.cpp
+    src/services/PreviewImageCache.cpp
+    src/services/SubtokenService.cpp
     src/services/HttpClient.cpp
     src/services/Gw2MapApiClient.cpp
     src/services/MarkerListing.cpp
@@ -100,14 +117,18 @@ set(SRC_FILES
     src/ui/MapPickerUi.cpp
     src/ui/SquadMarkerIconPicker.cpp
     src/ui/CommunityLibraryUi.cpp
+    src/ui/MapPreviewPopupUi.cpp
+    src/ui/OptionsApiTab.cpp
     src/ui/QuickAccessService.cpp
     src/ui/UiFontService.cpp
     ${EMBEDDED_TEXTURES_CPP}
     ${EMBEDDED_DEFAULTS_CPP}
+    ${EMBEDDED_BUILTIN_IDS_CPP}
 )
 
 add_custom_target(generate_embedded_assets DEPENDS ${EMBEDDED_TEXTURES_CPP} ${EMBEDDED_TEXTURES_H}
-                                              ${EMBEDDED_DEFAULTS_CPP} ${EMBEDDED_DEFAULTS_H})
+                                              ${EMBEDDED_DEFAULTS_CPP} ${EMBEDDED_DEFAULTS_H}
+                                              ${EMBEDDED_BUILTIN_IDS_CPP} ${EMBEDDED_BUILTIN_IDS_H})
 
 add_library(NexusCommanderMarkers SHARED ${SRC_FILES})
 add_dependencies(NexusCommanderMarkers generate_embedded_assets)
@@ -131,6 +152,9 @@ target_link_libraries(NexusCommanderMarkers PRIVATE
 )
 
 target_compile_definitions(NexusCommanderMarkers PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+if(CM_LOCAL_TEST)
+    target_compile_definitions(NexusCommanderMarkers PRIVATE CM_LOCAL_TEST)
+endif()
 
 if(CMAKE_CXX_COMPILER MATCHES "mingw" OR MINGW)
     target_link_options(NexusCommanderMarkers PRIVATE

@@ -3,7 +3,9 @@
 #include "core/AppState.h"
 #include "core/MumbleUtils.h"
 #include "ui/LibrarySearchUi.h"
+#include "ui/MapPreviewPopupUi.h"
 #include "ui/MarkerSetEditorWindow.h"
+#include "services/MarkerListing.h"
 #include "ui/OptionsUiKit.h"
 #include "ui/TextureService.h"
 
@@ -14,9 +16,9 @@ namespace cm {
 namespace LibraryEditorUi {
 namespace {
 
-constexpr float kIconColumnWidth = 36.0f;
-constexpr float kIconSize = 24.0f;
-constexpr float kActionsColumnWidth = 220.0f;
+constexpr float kIconColumnWidth = 72.0f;
+constexpr float kIconSize = 64.0f;
+constexpr float kActionsColumnWidth = 280.0f;
 constexpr float kStatusColumnWidth = 96.0f;
 
 char g_searchQuery[128] = "";
@@ -33,7 +35,10 @@ float UiScale(const AppState& state) {
 }
 
 float CalcLibraryRowHeight() {
-    return ImGui::GetTextLineHeightWithSpacing() * 2.0f + ImGui::GetTextLineHeight();
+    const float textHeight =
+        ImGui::GetTextLineHeightWithSpacing() * 3.0f + ImGui::GetTextLineHeight();
+    const float iconHeight = kIconSize + ImGui::GetStyle().CellPadding.y * 2.0f;
+    return std::max(textHeight + ImGui::GetStyle().CellPadding.y * 2.0f, iconHeight);
 }
 
 void CenterCursorInCell(float columnWidth, float contentWidth, float rowHeight,
@@ -126,19 +131,33 @@ void RenderMarkerSetRow(AppState& state,
     }
 
     const SquadMarker squadMarker = ListingIconForRow(listingIndex);
-    const ImTextureID icon = markerSet.enabled ? TextureService::GetTexture(squadMarker) :
-                                                 TextureService::GetTexture(SquadMarker::Clear);
+    ImTextureID icon = markerSet.enabled ? TextureService::GetTexture(squadMarker) :
+                                           TextureService::GetTexture(SquadMarker::Clear);
+    MapPreviewPopupUi::Target previewTarget{};
+    if (markerSet.enabled && !markerSet.communitySetId.empty()) {
+        state.previewImageCache.RequestThumb(markerSet.communitySetId, {});
+        const std::string thumbPath =
+            state.previewImageCache.ThumbPathForSet(markerSet.communitySetId);
+        if (!thumbPath.empty()) {
+            if (ImTextureID thumb = TextureService::GetThumbTexture(
+                    "CM_THUMB_" + markerSet.communitySetId, thumbPath)) {
+                icon = thumb;
+                previewTarget.communitySetId = markerSet.communitySetId;
+                previewTarget.label = markerSet.name;
+                previewTarget.description = markerSet.description;
+                previewTarget.markers = markerSet.markers;
+                previewTarget.previewLargeUrl = {};
+                previewTarget.zoomable = true;
+            }
+        }
+    }
     const float rowHeight = CalcLibraryRowHeight();
     const float actionHeight = ActionButtonHeight();
     const ImGuiStyle& style = ImGui::GetStyle();
 
     ImGui::TableSetColumnIndex(0);
     CenterCursorInCell(kIconColumnWidth, kIconSize, rowHeight, kIconSize);
-    if (icon) {
-        ImGui::Image(icon, ImVec2(kIconSize, kIconSize));
-    } else {
-        ImGui::Dummy(ImVec2(kIconSize, kIconSize));
-    }
+    MapPreviewPopupUi::RenderIcon(state, previewTarget, icon, ImVec2(kIconSize, kIconSize));
 
     ImGui::TableSetColumnIndex(1);
     if (!markerSet.enabled) {
@@ -153,27 +172,57 @@ void RenderMarkerSetRow(AppState& state,
     ImGui::TextDisabled("Map: %s | Markers: %zu",
                         state.mapData.Describe(markerSet.mapId).c_str(),
                         markerSet.markers.size());
+    ImGui::TextDisabled("Author: %s", MarkerListing::DisplayAuthor(markerSet).c_str());
     if (!markerSet.enabled) {
         ImGui::PopStyleColor();
     }
 
     ImGui::TableSetColumnIndex(2);
+    const bool communityLinked = MarkerListing::IsCommunityLinked(markerSet);
+    const char* editLabel = communityLinked ? "Personalize" : "Edit";
     const float editWidth =
         style.FramePadding.x * 2.0f + 16.0f + style.ItemInnerSpacing.x +
-        ImGui::CalcTextSize("Edit").x;
+        ImGui::CalcTextSize(editLabel).x;
+    const float deleteWidth =
+        style.FramePadding.x * 2.0f + 16.0f + style.ItemInnerSpacing.x +
+        ImGui::CalcTextSize("Delete").x;
     const float previewWidth = actionHeight;
     const float placeWidth = style.FramePadding.x * 2.0f + ImGui::CalcTextSize("Place").x;
     const bool showMapActions = markerSet.mapId == currentMapId;
-    const float actionsWidth =
-        showMapActions ? editWidth + style.ItemSpacing.x + previewWidth + style.ItemSpacing.x +
-                             placeWidth :
-                         editWidth;
+    float actionsWidth = editWidth;
+    if (communityLinked) {
+        actionsWidth += style.ItemSpacing.x + deleteWidth;
+    }
+    if (showMapActions) {
+        actionsWidth += style.ItemSpacing.x + previewWidth + style.ItemSpacing.x + placeWidth;
+    }
 
     CenterCursorInCell(kActionsColumnWidth, actionsWidth, rowHeight, actionHeight);
 
-    if (TexturedButton("edit", "Edit", TextureService::GetUiTexture("iconEdit"), 16.0f,
+    if (TexturedButton(communityLinked ? "personalize" : "edit", editLabel,
+                       TextureService::GetUiTexture("iconEdit"), 16.0f,
                        ImVec2(0.0f, actionHeight))) {
-        MarkerSetEditorWindow::OpenExisting(state, markerSet, static_cast<int>(listingIndex));
+        if (communityLinked) {
+            MarkerSetEditorWindow::OpenPersonalizedFromTemplate(state, markerSet);
+        } else {
+            MarkerSetEditorWindow::OpenExisting(state, markerSet, static_cast<int>(listingIndex));
+        }
+    }
+    if (ImGui::IsItemHovered() && communityLinked) {
+        ImGui::SetTooltip(
+            "Open the editor with this set as a template. Save to add your personalized copy.");
+    }
+
+    if (communityLinked) {
+        ImGui::SameLine(0.0f, style.ItemSpacing.x);
+        if (TexturedButton("delete", "Delete", TextureService::GetUiTexture("iconDelete"), 16.0f,
+                           ImVec2(0.0f, actionHeight))) {
+            state.mapWatch.RemovePreviewMarkerSet();
+            state.markerListing.DeleteMarker(markerSet);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Remove this imported set from your library");
+        }
     }
 
     if (showMapActions) {
@@ -213,10 +262,15 @@ void Render(AppState& state) {
     using namespace OptionsUiKit;
 
     SectionHeading("AutoMarker Library");
-    SectionSubtext("Manage saved marker sets. Use Edit to open the marker set editor window.");
+    SectionSubtext(
+        "Manage saved marker sets. Imported community sets are read-only — use Personalize to "
+        "create your own editable copy.");
 
-    SettingCheckbox("Filter to current map", &state.settings.libraryFilterCurrentMap,
+    SettingCheckbox("Current map", &state.settings.libraryFilterCurrentMap,
                     "Only show marker sets for your current map.");
+    ImGui::SameLine();
+    SettingCheckbox("Mine", &state.settings.libraryFilterMine,
+                    "Hide marker sets imported from the community library.");
 
     ImGui::Spacing();
 
@@ -261,7 +315,7 @@ void Render(AppState& state) {
         if (ImGui::BeginTable("##cm_library_rows", 4,
                               ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn("##icon", ImGuiTableColumnFlags_WidthFixed, kIconColumnWidth);
-            ImGui::TableSetupColumn("##details", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("##details", ImGuiTableColumnFlags_WidthStretch, 6.0f);
             ImGui::TableSetupColumn("##actions", ImGuiTableColumnFlags_WidthFixed,
                                     kActionsColumnWidth);
             ImGui::TableSetupColumn("##status", ImGuiTableColumnFlags_WidthFixed,
@@ -271,6 +325,10 @@ void Render(AppState& state) {
             for (size_t i = 0; i < markerSets.size(); ++i) {
                 const MarkerSet& markerSet = markerSets[i];
                 if (state.settings.libraryFilterCurrentMap && markerSet.mapId != currentMapId) {
+                    continue;
+                }
+                if (state.settings.libraryFilterMine &&
+                    MarkerListing::IsCommunityLinked(markerSet)) {
                     continue;
                 }
                 if (!LibrarySearchUi::Matches(state, markerSet, searchLower)) {

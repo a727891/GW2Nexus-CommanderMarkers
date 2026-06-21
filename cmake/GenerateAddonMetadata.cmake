@@ -11,9 +11,10 @@ function(configure_addon_metadata target user_agent_prefix)
     add_custom_command(
         OUTPUT "${_version_h}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${_generated_dir}"
-        COMMAND python3 "${CMAKE_SOURCE_DIR}/scripts/generate_addon_metadata.py"
+        COMMAND ${Python3_EXECUTABLE} scripts/generate_addon_metadata.py
                 --user-agent-prefix "${user_agent_prefix}"
                 --output-dir "${_generated_dir}"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         DEPENDS "${CMAKE_SOURCE_DIR}/scripts/generate_addon_metadata.py"
         COMMENT "Generating Version.h"
         VERBATIM

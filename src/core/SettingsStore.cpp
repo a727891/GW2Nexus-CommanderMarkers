@@ -89,6 +89,9 @@ void SettingsStore::Load(const std::string& filePath) {
     if (j.contains("CmdMrkCombatPlacement")) combatPlacement = j["CmdMrkCombatPlacement"].get<bool>();
     if (j.contains("CmdMrkPlacementDelay")) placementDelayMs = j["CmdMrkPlacementDelay"].get<int>();
     if (j.contains("CmdMrkAMLibraryFilter")) libraryFilterCurrentMap = j["CmdMrkAMLibraryFilter"].get<bool>();
+    if (j.contains("CmdMrkAMLibraryFilterMine")) {
+        libraryFilterMine = j["CmdMrkAMLibraryFilterMine"].get<bool>();
+    }
     if (j.contains("CmdMrkAMCommunityShowAvailable")) {
         communityLibraryShowAvailable = j["CmdMrkAMCommunityShowAvailable"].get<bool>();
     }
@@ -127,6 +130,7 @@ void SettingsStore::Save(const std::string& filePath) const {
         {"CmdMrkCombatPlacement", combatPlacement},
         {"CmdMrkPlacementDelay", placementDelayMs},
         {"CmdMrkAMLibraryFilter", libraryFilterCurrentMap},
+        {"CmdMrkAMLibraryFilterMine", libraryFilterMine},
         {"CmdMrkAMCommunityShowAvailable", communityLibraryShowAvailable},
         {"CmdMrkAMEditorConfirmUnsaved", libraryEditorConfirmUnsaved},
         {"CmdMrkCornerIconEnabled", cornerIconEnabled},
