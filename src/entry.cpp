@@ -47,8 +47,7 @@ void OnGameInteract() {
         return;
     }
 
-    state.mapWatch.OnInteractKey(state.mumbleLink, state.nexusLink, state.ltMode,
-                                 state.nexusLink ? state.nexusLink->Scaling : 1.0f);
+    state.mapWatch.OnInteractKey(state.mumbleLink, state.nexusLink, state.ltMode);
 }
 
 void OnToggle(const char*, bool isRelease) {
@@ -88,6 +87,7 @@ void AddonUnload() {
 
     g_api->GUI_Deregister(AddonRender);
     g_api->GUI_Deregister(AddonOptions);
+    cm::AppState::Instance().HaltBackgroundWork();
     g_api->InputBinds_Deregister(kToggleBind);
     cm::InteractBindService::Unregister(g_api);
     cm::MarkersPanel::UnregisterInput(g_api);
@@ -127,8 +127,7 @@ void AddonRender() {
     cm::QuickAccessService::SyncVisibility(g_api, state);
 
     if (state.mumbleLink && state.nexusLink) {
-        state.mapWatch.Update(state.mumbleLink, state.nexusLink, state.ltMode,
-                              state.nexusLink->Scaling);
+        state.mapWatch.Update(state.mumbleLink, state.nexusLink, state.ltMode);
     }
     state.placementService.Tick();
     cm::DatAssetIconService::ProcessDownloads();

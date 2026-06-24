@@ -37,6 +37,58 @@ void ModuleManifestService::ApplyLocalTestOverrides() {
 #endif
 }
 
+std::optional<CommanderMarkersManifest> ModuleManifestService::ParseBody(
+    const std::string& body) {
+    try {
+        const auto j = nlohmann::json::parse(body);
+        CommanderMarkersManifest manifest{};
+        manifest.serverUrl = j.value("server_url", manifest.serverUrl);
+        manifest.communityCheckUrl =
+            j.value("community_check_url", manifest.communityCheckUrl);
+        manifest.communityMarkersUrl =
+            j.value("community_markers_url", manifest.communityMarkersUrl);
+        manifest.setsUrl = j.value("sets_url", manifest.setsUrl);
+        manifest.setDetailUrl = j.value("set_detail_url", manifest.setDetailUrl);
+        manifest.thumbUrl = j.value("thumb_url", manifest.thumbUrl);
+        manifest.categoriesUrl = j.value("categories_url", manifest.categoriesUrl);
+        manifest.submissionsUrl = j.value("submissions_url", manifest.submissionsUrl);
+        manifest.submissionsMineUrl =
+            j.value("submissions_mine_url", manifest.submissionsMineUrl);
+        manifest.subtokenUrl = j.value("subtoken_url", manifest.subtokenUrl);
+        manifest.libraryUrl = j.value("library_url", manifest.libraryUrl);
+#if defined(CM_LOCAL_TEST)
+        manifest.serverUrl = kDefaultServerUrl;
+#endif
+        return manifest;
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
+void ModuleManifestService::LoadDefaults() {
+    manifest_ = CommanderMarkersManifest{};
+    ApplyLocalTestOverrides();
+    loaded_ = true;
+    fetchSucceeded_ = false;
+}
+
+bool ModuleManifestService::ApplyParsedManifest(const CommanderMarkersManifest& parsed) {
+    manifest_ = parsed;
+    ApplyLocalTestOverrides();
+    loaded_ = true;
+    fetchSucceeded_ = true;
+    return true;
+}
+
+bool ModuleManifestService::ApplyFromBody(const std::string& body) {
+    const auto parsed = ParseBody(body);
+    if (!parsed) {
+        fetchSucceeded_ = false;
+        return false;
+    }
+    return ApplyParsedManifest(*parsed);
+}
+
 bool ModuleManifestService::LoadOrFetch(const std::string& manifestUrl) {
     fetchSucceeded_ = false;
     const auto body = HttpGetUrl(manifestUrl);
@@ -47,31 +99,13 @@ bool ModuleManifestService::LoadOrFetch(const std::string& manifestUrl) {
         return false;
     }
 
-    try {
-        const auto j = nlohmann::json::parse(*body);
-        manifest_.serverUrl = j.value("server_url", manifest_.serverUrl);
-        manifest_.communityCheckUrl =
-            j.value("community_check_url", manifest_.communityCheckUrl);
-        manifest_.communityMarkersUrl =
-            j.value("community_markers_url", manifest_.communityMarkersUrl);
-        manifest_.setsUrl = j.value("sets_url", manifest_.setsUrl);
-        manifest_.setDetailUrl = j.value("set_detail_url", manifest_.setDetailUrl);
-        manifest_.thumbUrl = j.value("thumb_url", manifest_.thumbUrl);
-        manifest_.categoriesUrl = j.value("categories_url", manifest_.categoriesUrl);
-        manifest_.submissionsUrl = j.value("submissions_url", manifest_.submissionsUrl);
-        manifest_.submissionsMineUrl =
-            j.value("submissions_mine_url", manifest_.submissionsMineUrl);
-        manifest_.subtokenUrl = j.value("subtoken_url", manifest_.subtokenUrl);
-        manifest_.libraryUrl = j.value("library_url", manifest_.libraryUrl);
-        ApplyLocalTestOverrides();
-        loaded_ = true;
-        fetchSucceeded_ = true;
+    if (ApplyFromBody(*body)) {
         return true;
-    } catch (...) {
-        ApplyLocalTestOverrides();
-        loaded_ = true;
-        return false;
     }
+
+    ApplyLocalTestOverrides();
+    loaded_ = true;
+    return false;
 }
 
 }  // namespace cm

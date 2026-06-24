@@ -240,7 +240,8 @@ void Render(AppState& state) {
         return;
     }
 
-    const ScreenMapData screenMap = BuildScreenMapData(state.mumbleLink, state.nexusLink);
+    const ScreenMapData screenMap =
+        BuildScreenMapData(state.mumbleLink, state.nexusLink, state.playerIdentity);
     if (screenMap.screenBounds.w <= 0 || screenMap.screenBounds.h <= 0) {
         return;
     }

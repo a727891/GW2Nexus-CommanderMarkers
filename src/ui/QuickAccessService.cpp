@@ -63,9 +63,7 @@ void RenderContextMenu() {
         }
         if (ImGui::Selectable(markerSet.name.c_str())) {
             if (state.mumbleLink && state.nexusLink) {
-                const float uiScale =
-                    state.nexusLink->Scaling > 0.0f ? state.nexusLink->Scaling : 1.0f;
-                state.mapWatch.PlaceMarkerSet(markerSet, state.mumbleLink, state.nexusLink, uiScale);
+                state.mapWatch.PlaceMarkerSet(markerSet, state.mumbleLink, state.nexusLink);
             }
         }
     }

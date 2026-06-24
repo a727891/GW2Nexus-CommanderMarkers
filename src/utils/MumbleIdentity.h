@@ -9,6 +9,7 @@ namespace MumbleIdentity {
 
 int ParseUisz(const Mumble::Data* data);
 float ParseUiScale(const Mumble::Data* data);
+float UiScaleFromEnum(Mumble::EUIScale size);
 bool ParseCommander(const Mumble::Data* data);
 std::string ParseCharacterName(const Mumble::Data* data);
 

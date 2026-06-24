@@ -27,8 +27,8 @@ public:
                     MarkerPlacementService* placementService, SettingsStore* settings,
                     const Mumble::Identity* const* playerIdentity);
 
-    void Update(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode, float uiScale);
-    void OnInteractKey(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode, float uiScale);
+    void Update(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode);
+    void OnInteractKey(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode);
 
     void PreviewClosestMarkerSet(Mumble::Data* mumble);
     void SetPreviewMarkerSet(const MarkerSet& markerSet);
@@ -37,8 +37,7 @@ public:
     bool IsManualPreview() const { return manualPreviewActive_; }
     bool ShouldShowMapPreview(const Mumble::Data* mumble) const;
 
-    void PlaceMarkerSet(const MarkerSet& markerSet, Mumble::Data* mumble, NexusLinkData_t* nexus,
-                        float uiScale);
+    void PlaceMarkerSet(const MarkerSet& markerSet, Mumble::Data* mumble, NexusLinkData_t* nexus);
 
     const std::vector<MarkerSet>& CurrentMapMarkers() const { return currentMarkers_; }
 

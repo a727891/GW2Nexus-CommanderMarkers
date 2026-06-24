@@ -117,20 +117,18 @@ const MarkerSet* MapWatchService::FindClosestMarker(Mumble::Data* mumble, float 
 }
 
 void MapWatchService::PlaceMarkerSet(const MarkerSet& markerSet, Mumble::Data* mumble,
-                                     NexusLinkData_t* nexus, float uiScale) {
+                                     NexusLinkData_t* nexus) {
     if (!placementService_ || !mapData_ || !settings_ || !mumble || !nexus) {
         return;
     }
 
-    const ScreenMapData screenMap = BuildScreenMapData(mumble, nexus);
-    placementService_->QueuePlaceMarkerSet(markerSet, mapData_, screenMap, settings_->placementDelayMs,
-                                           uiScale);
+    const Mumble::Identity* identity = playerIdentity_ ? *playerIdentity_ : nullptr;
+    const ScreenMapData screenMap = BuildScreenMapData(mumble, nexus, identity);
+    placementService_->QueuePlaceMarkerSet(markerSet, mapData_, screenMap, settings_->placementDelayMs);
 }
 
-void MapWatchService::Update(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode,
-                             float uiScale) {
+void MapWatchService::Update(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode) {
     (void)ltMode;
-    (void)uiScale;
 
     if (!mumble) {
         return;
@@ -156,8 +154,7 @@ void MapWatchService::Update(Mumble::Data* mumble, NexusLinkData_t* nexus, bool 
     }
 }
 
-void MapWatchService::OnInteractKey(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode,
-                                    float uiScale) {
+void MapWatchService::OnInteractKey(Mumble::Data* mumble, NexusLinkData_t* nexus, bool ltMode) {
     const uint64_t now = GetTickCount64();
     if (now - lastTriggerMs_ < static_cast<uint64_t>(kInteractCooldownMs)) {
         return;
@@ -181,7 +178,7 @@ void MapWatchService::OnInteractKey(Mumble::Data* mumble, NexusLinkData_t* nexus
     }
 
     lastTriggerMs_ = now;
-    PlaceMarkerSet(*closest, mumble, nexus, uiScale);
+    PlaceMarkerSet(*closest, mumble, nexus);
 }
 
 void MapWatchService::PreviewClosestMarkerSet(Mumble::Data* mumble) {

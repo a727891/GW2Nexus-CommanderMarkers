@@ -4,6 +4,7 @@
 #include "services/HttpClient.h"
 
 #include <atomic>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -73,6 +74,10 @@ void DownloadAsset(int assetId) {
 }
 
 void WorkerLoop(std::vector<int> batch) {
+    struct WorkerGuard {
+        ~WorkerGuard() { g_workerRunning.store(false); }
+    } guard;
+
     for (int assetId : batch) {
         if (assetId <= 0) {
             continue;
@@ -96,7 +101,6 @@ void WorkerLoop(std::vector<int> batch) {
             g_downloading.erase(assetId);
         }
     }
-    g_workerRunning.store(false);
 }
 
 void FinalizeDownloadsOnMainThread() {
@@ -143,6 +147,12 @@ void DatAssetIconService::Initialize(AddonAPI_t* api, const std::string& addonDi
 }
 
 void DatAssetIconService::Shutdown() {
+    using namespace std::chrono_literals;
+    const auto deadline = std::chrono::steady_clock::now() + 20s;
+    while (g_workerRunning.load() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(10ms);
+    }
+
     std::lock_guard lock(g_mutex);
     g_textures.clear();
     g_pending.clear();

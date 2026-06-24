@@ -19,7 +19,7 @@ public:
     void Tick();
 
     bool QueuePlaceMarkerSet(const MarkerSet& markerSet, MapDataCache* mapData,
-                             const ScreenMapData& screenMap, int delayMs, float uiScale);
+                             const ScreenMapData& screenMap, int delayMs);
 
     bool IsBusy() const;
     const std::vector<std::string>& LastErrors() const;
@@ -48,7 +48,6 @@ private:
     PlacementPoint savedCursor_{};
     bool useScreenCoords_ = false;
     int delayMs_ = 100;
-    float uiScale_ = 1.0f;
     size_t markerIndex_ = 0;
     Phase phase_ = Phase::Idle;
     Phase phaseAfterWait_ = Phase::Idle;

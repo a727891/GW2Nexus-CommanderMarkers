@@ -13,7 +13,7 @@ struct PlacementPoint {
 
 bool TryGetGameClientOrigin(int& left, int& top);
 
-PlacementPoint BlishToPlacementPosition(Vec2f blishCoord, float uiScaleMultiplier);
+PlacementPoint ClientPlacementFromScreen(Vec2f screenCoord);
 
 void SetPlacementMousePosition(PlacementPoint placementPosition, bool useScreenCoordinates);
 

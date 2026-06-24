@@ -16,11 +16,11 @@
 #include "nexus/Nexus.h"
 
 #include <atomic>
+#include <mutex>
+#include <optional>
 #include <string>
 
 namespace cm {
-
-class TextureService;
 
 class AppState {
 public:
@@ -52,6 +52,11 @@ public:
     std::atomic<bool> mapRefreshPending{false};
     std::atomic<bool> mapRefreshInProgress{false};
     std::atomic<bool> mapUpdatedNotice{false};
+    std::atomic<bool> manifestFetchInProgress{false};
+    std::atomic<bool> manifestFetchComplete{false};
+    std::atomic<bool> manifestFetchApplied{false};
+    std::atomic<bool> shutdownRequested_{false};
+
     int lastMapRefreshBuildId = 0;
     int initStep = 0;
     uint32_t stableMapId = 0;
@@ -72,6 +77,7 @@ public:
     void ProcessDeferredInit();
     bool IsReady() const { return loadInitialized; }
     bool IsOptionsReady() const { return optionsReady; }
+    void HaltBackgroundWork();
     void Shutdown();
 
     void RequestCommunitySync();
@@ -87,9 +93,32 @@ public:
     std::string apiAccountsPath() const;
 
 private:
+    struct ManifestFetchResult {
+        std::optional<std::string> body;
+        int communityCheckStatus = 0;
+    };
+
     void CheckRequiredBinds();
     bool AdvanceMumbleStability();
-    float UiScale() const;
+    void RunDeferredInitStep();
+
+    void InitStepPrepare();
+    void InitStepMapData();
+    void InitStepMarkers();
+    void InitStepServices();
+    void InitStepFinalize();
+
+    void StartManifestFetch();
+    void ProcessManifestFetchResult();
+    void WireManifestServices();
+    void LogLocalTestManifest(const ManifestFetchResult& result, bool succeeded);
+
+    void WaitForBackgroundWork();
+    void ResetLoadState();
+
+    bool manifestFetchStarted_ = false;
+    std::mutex manifestFetchMutex_;
+    ManifestFetchResult manifestFetchResult_{};
 
     AppState();
 };

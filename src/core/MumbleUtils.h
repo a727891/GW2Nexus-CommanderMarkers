@@ -7,9 +7,14 @@
 
 namespace cm {
 
-ScreenRect GetMapBounds(const Mumble::Data* mumble, const NexusLinkData_t* nexus);
+float ResolveScreenScale(const NexusLinkData_t* nexus, const Mumble::Data* mumble,
+                         const Mumble::Identity* identity = nullptr);
 
-ScreenMapData BuildScreenMapData(const Mumble::Data* mumble, const NexusLinkData_t* nexus);
+ScreenRect GetMapBounds(const Mumble::Data* mumble, const NexusLinkData_t* nexus,
+                        const Mumble::Identity* identity = nullptr);
+
+ScreenMapData BuildScreenMapData(const Mumble::Data* mumble, const NexusLinkData_t* nexus,
+                                 const Mumble::Identity* identity = nullptr);
 
 bool IsInGame(const Mumble::Data* mumble, const NexusLinkData_t* nexus);
 

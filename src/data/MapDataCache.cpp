@@ -148,8 +148,11 @@ Vec2f MapDataCache::MapToScreenMap(const Vec2f& mapCoords, const ScreenMapData& 
 
     const float c = std::cos(screenData.mapRotation);
     const float s = std::sin(screenData.mapRotation);
-    return {translated.x * c - translated.y * s + screenData.boundsCenter.x,
-            translated.x * s + translated.y * c + screenData.boundsCenter.y};
+    const float rotatedX = translated.x * c - translated.y * s;
+    const float rotatedY = translated.x * s + translated.y * c;
+    // Anchor is in client pixels; apply real GW2 uiScale to the map offset only.
+    return {rotatedX * screenData.uiScale + screenData.boundsCenter.x,
+            rotatedY * screenData.uiScale + screenData.boundsCenter.y};
 }
 
 Vec2f MapDataCache::WorldToScreenMap(int mapId,

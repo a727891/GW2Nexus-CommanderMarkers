@@ -50,13 +50,6 @@ bool NuclearModifierHeld() {
     return ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift;
 }
 
-float UiScale(const AppState& state) {
-    if (!state.nexusLink || state.nexusLink->Scaling <= 0.0f) {
-        return 1.0f;
-    }
-    return state.nexusLink->Scaling;
-}
-
 float CalcCommunityRowHeight() {
     const float textHeight =
         ImGui::GetTextLineHeightWithSpacing() * 3.0f + ImGui::GetTextLineHeight();
@@ -221,8 +214,7 @@ void RenderCommunityRow(AppState& state,
             state.nexusLink) {
             MarkerSet markerSet{};
             if (FetchSetForActions(state, summary, markerSet)) {
-                state.mapWatch.PlaceMarkerSet(markerSet, state.mumbleLink, state.nexusLink,
-                                              UiScale(state));
+                state.mapWatch.PlaceMarkerSet(markerSet, state.mumbleLink, state.nexusLink);
             }
         }
     }

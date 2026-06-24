@@ -27,13 +27,6 @@ bool NuclearModifierHeld() {
     return ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift;
 }
 
-float UiScale(const AppState& state) {
-    if (!state.nexusLink || state.nexusLink->Scaling <= 0.0f) {
-        return 1.0f;
-    }
-    return state.nexusLink->Scaling;
-}
-
 float CalcLibraryRowHeight() {
     const float textHeight =
         ImGui::GetTextLineHeightWithSpacing() * 3.0f + ImGui::GetTextLineHeight();
@@ -236,8 +229,7 @@ void RenderMarkerSetRow(AppState& state,
         ImGui::SameLine(0.0f, style.ItemSpacing.x);
         if (ImGui::Button("Place", ImVec2(placeWidth, actionHeight)) && state.mumbleLink &&
             state.nexusLink) {
-            state.mapWatch.PlaceMarkerSet(markerSet, state.mumbleLink, state.nexusLink,
-                                          UiScale(state));
+            state.mapWatch.PlaceMarkerSet(markerSet, state.mumbleLink, state.nexusLink);
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Place squad markers for this set.");

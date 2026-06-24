@@ -7,6 +7,17 @@
 
 namespace cm {
 
+float ResolveScreenScale(const NexusLinkData_t* nexus, const Mumble::Data* mumble,
+                         const Mumble::Identity* identity) {
+    if (nexus && nexus->Scaling > 0.01f) {
+        return nexus->Scaling;
+    }
+    if (MumbleIdentity::IsParsedIdentityUsable(mumble, identity)) {
+        return MumbleIdentity::UiScaleFromEnum(identity->UISize);
+    }
+    return MumbleIdentity::ParseUiScale(mumble);
+}
+
 namespace {
 
 constexpr int kMinCompassWidth = 170;
@@ -15,7 +26,7 @@ constexpr int kMinCompassHeight = 170;
 constexpr int kMaxCompassHeight = 338;
 constexpr int kMinCompassOffset = 19;
 constexpr int kMaxCompassOffset = 40;
-constexpr int kCompassSeparation = 40;
+constexpr int kCompassBottomOffset = 38;
 
 struct CompassMetrics {
     float uiScale = 1.0f;
@@ -27,7 +38,9 @@ struct CompassMetrics {
 };
 
 float ScaleValue(float curr, float min, float max, float outMin, float outMax) {
-    if (max <= min) return outMin;
+    if (max <= min) {
+        return outMin;
+    }
     const float t = (curr - min) / (max - min);
     return outMin + t * (outMax - outMin);
 }
@@ -38,14 +51,25 @@ int GetCompassOffset(float curr, float min, float max) {
                    static_cast<float>(kMaxCompassOffset))));
 }
 
-float ResolveScreenScale(const NexusLinkData_t* nexus, const Mumble::Data* mumble) {
-    if (nexus && nexus->Scaling > 0.01f) {
-        return nexus->Scaling;
+Vec2f ComputeMapContentCenter(const ScreenRect& bounds, const CompassMetrics& metrics,
+                              bool mapOpen, bool compassTopRight) {
+    if (mapOpen) {
+        return {static_cast<float>(bounds.x) + bounds.w * 0.5f,
+                static_cast<float>(bounds.y) + bounds.h * 0.5f};
     }
-    return MumbleIdentity::ParseUiScale(mumble);
+
+    const float centerX =
+        static_cast<float>(bounds.x) + metrics.paddingLeft + metrics.contentW * 0.5f;
+    if (compassTopRight) {
+        // Top-anchored: map content sits flush under the screen top; height padding is below.
+        return {centerX, static_cast<float>(bounds.y) + metrics.contentH * 0.5f};
+    }
+
+    return {centerX, static_cast<float>(bounds.y) + metrics.paddingTop + metrics.contentH * 0.5f};
 }
 
-CompassMetrics ComputeCompassMetrics(const Mumble::Data* mumble, const NexusLinkData_t* nexus) {
+CompassMetrics ComputeCompassMetrics(const Mumble::Data* mumble, const NexusLinkData_t* nexus,
+                                     const Mumble::Identity* identity) {
     CompassMetrics metrics{};
     if (!mumble || !nexus) {
         return metrics;
@@ -57,7 +81,7 @@ CompassMetrics ComputeCompassMetrics(const Mumble::Data* mumble, const NexusLink
         return metrics;
     }
 
-    metrics.uiScale = ResolveScreenScale(nexus, mumble);
+    metrics.uiScale = ResolveScreenScale(nexus, mumble, identity);
     metrics.mapScale =
         mumble->Context.Compass.Scale > 0.0f ? mumble->Context.Compass.Scale : 1.0f;
     metrics.contentW = compassW * metrics.uiScale;
@@ -75,33 +99,21 @@ CompassMetrics ComputeCompassMetrics(const Mumble::Data* mumble, const NexusLink
     return metrics;
 }
 
-Vec2f ComputeMapContentCenter(const ScreenRect& bounds,
-                              const CompassMetrics& metrics,
-                              bool mapOpen) {
-    if (mapOpen) {
-        return {static_cast<float>(bounds.x) + bounds.w * 0.5f,
-                static_cast<float>(bounds.y) + bounds.h * 0.5f};
-    }
-    return {static_cast<float>(bounds.x) + metrics.paddingLeft + metrics.contentW * 0.5f,
-            static_cast<float>(bounds.y) + metrics.paddingTop + metrics.contentH * 0.5f};
-}
-
 }  // namespace
 
-ScreenRect GetMapBounds(const Mumble::Data* mumble, const NexusLinkData_t* nexus) {
+ScreenRect GetMapBounds(const Mumble::Data* mumble, const NexusLinkData_t* nexus,
+                        const Mumble::Identity* identity) {
     ScreenRect rect{};
     if (!mumble || !nexus) {
         return rect;
     }
 
-    const CompassMetrics metrics = ComputeCompassMetrics(mumble, nexus);
+    const CompassMetrics metrics = ComputeCompassMetrics(mumble, nexus, identity);
     if (metrics.contentW < 1.0f || metrics.contentH < 1.0f) {
         return rect;
     }
 
     if (mumble->Context.IsMapOpen) {
-        // Overlay window covers the full Nexus viewport (matches Blish SpriteScreen). Projection
-        // math uses map content center via ComputeMapContentCenter, not this rect's geometry.
         rect.x = 0;
         rect.y = 0;
         rect.w = static_cast<int>(nexus->Width);
@@ -113,32 +125,38 @@ ScreenRect GetMapBounds(const Mumble::Data* mumble, const NexusLinkData_t* nexus
     const int offsetH = static_cast<int>(std::lround(metrics.paddingTop));
     const int scaledCompassW = static_cast<int>(std::lround(metrics.contentW));
     const int scaledCompassH = static_cast<int>(std::lround(metrics.contentH));
+    const int bottomOffset =
+        static_cast<int>(std::lround(kCompassBottomOffset * metrics.uiScale));
 
     rect.w = scaledCompassW + offsetW;
     rect.h = scaledCompassH + offsetH;
     rect.x = static_cast<int>(nexus->Width) - scaledCompassW - offsetW;
     rect.y = mumble->Context.IsCompassTopRight
                  ? 0
-                 : static_cast<int>(nexus->Height) - scaledCompassH - offsetH - kCompassSeparation;
+                 : static_cast<int>(nexus->Height) - scaledCompassH - offsetH - bottomOffset;
     return rect;
 }
 
-ScreenMapData BuildScreenMapData(const Mumble::Data* mumble, const NexusLinkData_t* nexus) {
+ScreenMapData BuildScreenMapData(const Mumble::Data* mumble, const NexusLinkData_t* nexus,
+                                 const Mumble::Identity* identity) {
     ScreenMapData data{};
     if (!mumble || !nexus) {
         return data;
     }
 
-    const CompassMetrics metrics = ComputeCompassMetrics(mumble, nexus);
+    const CompassMetrics metrics = ComputeCompassMetrics(mumble, nexus, identity);
     data.mapCenter = {mumble->Context.Compass.Center.X, mumble->Context.Compass.Center.Y};
     data.mapRotation = (mumble->Context.IsCompassRotating && !mumble->Context.IsMapOpen)
                            ? mumble->Context.Compass.Rotation
                            : 0.0f;
-    data.screenBounds = GetMapBounds(mumble, nexus);
-    // Nexus draws in game screen pixels. Blish's 1/0.897 factor is a Blish HUD overlay quirk.
+    data.screenBounds = GetMapBounds(mumble, nexus, identity);
+    data.uiScale = metrics.uiScale;
+    // GW2 map scale only. Do not use Blish's 1/0.897 factor — that compensates for Blish
+    // treating Large UI as 1.0; Nexus uses actual game UI scale (Normal=1.0, Large≈1.11).
     data.scale = 1.0f / metrics.mapScale;
-    data.boundsCenter =
-        ComputeMapContentCenter(data.screenBounds, metrics, mumble->Context.IsMapOpen != 0);
+    data.boundsCenter = ComputeMapContentCenter(data.screenBounds, metrics,
+                                              mumble->Context.IsMapOpen != 0,
+                                              mumble->Context.IsCompassTopRight != 0);
     return data;
 }
 

@@ -2,6 +2,7 @@
 
 #include "core/Branding.h"
 
+#include <optional>
 #include <string>
 
 namespace cm {
@@ -25,13 +26,18 @@ struct CommanderMarkersManifest {
 
 class ModuleManifestService {
 public:
+    void LoadDefaults();
+    bool ApplyFromBody(const std::string& body);
     bool LoadOrFetch(const std::string& manifestUrl);
+    static std::optional<CommanderMarkersManifest> ParseBody(const std::string& body);
+
     const CommanderMarkersManifest& Get() const { return manifest_; }
     bool IsLoaded() const { return loaded_; }
     bool FetchSucceeded() const { return fetchSucceeded_; }
 
 private:
     void ApplyLocalTestOverrides();
+    bool ApplyParsedManifest(const CommanderMarkersManifest& parsed);
 
     CommanderMarkersManifest manifest_{};
     bool loaded_ = false;

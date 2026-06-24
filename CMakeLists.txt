@@ -74,6 +74,8 @@ add_custom_command(
 set(SRC_FILES
     src/entry.cpp
     src/core/AppState.cpp
+    src/core/AppStateInit.cpp
+    src/core/AppStateBackground.cpp
     src/core/SettingsStore.cpp
     src/core/MumbleUtils.cpp
     src/data/MarkerSetJson.cpp

@@ -92,9 +92,9 @@ bool TryGetGameClientOrigin(int& left, int& top) {
     return true;
 }
 
-PlacementPoint BlishToPlacementPosition(Vec2f blishCoord, float uiScaleMultiplier) {
-    const float x = blishCoord.x * uiScaleMultiplier;
-    const float y = blishCoord.y * uiScaleMultiplier;
+PlacementPoint ClientPlacementFromScreen(Vec2f screenCoord) {
+    const float x = screenCoord.x;
+    const float y = screenCoord.y;
 
     int gameLeft = 0;
     int gameTop = 0;

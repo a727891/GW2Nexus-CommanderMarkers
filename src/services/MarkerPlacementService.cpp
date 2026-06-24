@@ -57,7 +57,7 @@ void MarkerPlacementService::ProcessNextMarker() {
             continue;
         }
 
-        const PlacementPoint placementPos = BlishToPlacementPosition(blishCoord, uiScale_);
+        const PlacementPoint placementPos = ClientPlacementFromScreen(blishCoord);
         SetPlacementMousePosition(placementPos, useScreenCoords_);
         pendingMarker_ = squadMarker;
         BeginWait(Phase::PlaceInvoke, static_cast<uint64_t>(std::max(1, delayMs_ / 2)));
@@ -68,8 +68,7 @@ void MarkerPlacementService::ProcessNextMarker() {
 }
 
 bool MarkerPlacementService::QueuePlaceMarkerSet(const MarkerSet& markerSet, MapDataCache* mapData,
-                                                 const ScreenMapData& screenMap, int delayMs,
-                                                 float uiScale) {
+                                                 const ScreenMapData& screenMap, int delayMs) {
     if (IsBusy()) {
         return false;
     }
@@ -88,7 +87,6 @@ bool MarkerPlacementService::QueuePlaceMarkerSet(const MarkerSet& markerSet, Map
     markerSet_ = markerSet;
     screenMap_ = screenMap;
     delayMs_ = std::max(1, delayMs);
-    uiScale_ = uiScale;
     errors_.clear();
     markerIndex_ = 0;
     pendingMarker_ = SquadMarker::None;

@@ -151,6 +151,7 @@ struct MarkerListingFile {
 struct ScreenMapData {
     Vec2f mapCenter{};
     float mapRotation = 0.0f;
+    float uiScale = 1.0f;
     float scale = 1.0f;
     ScreenRect screenBounds{};
     Vec2f boundsCenter{};

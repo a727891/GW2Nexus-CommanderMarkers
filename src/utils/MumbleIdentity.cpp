@@ -50,17 +50,21 @@ int ParseUisz(const Mumble::Data* data) {
     return json->value("uisz", 1);
 }
 
-float ParseUiScale(const Mumble::Data* data) {
-    switch (ParseUisz(data)) {
-        case 0:
+float UiScaleFromEnum(const Mumble::EUIScale size) {
+    switch (size) {
+        case Mumble::EUIScale::Small:
             return 0.9f;
-        case 2:
+        case Mumble::EUIScale::Large:
             return 1.111f;
-        case 3:
+        case Mumble::EUIScale::Larger:
             return 1.224f;
         default:
             return 1.0f;
     }
+}
+
+float ParseUiScale(const Mumble::Data* data) {
+    return UiScaleFromEnum(static_cast<Mumble::EUIScale>(ParseUisz(data)));
 }
 
 bool ParseCommander(const Mumble::Data* data) {
